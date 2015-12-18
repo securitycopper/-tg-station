@@ -1,0 +1,44 @@
+"a" = (/turf/simulated/wall,/area/maintenance/electrical)
+"b" = (/obj/machinery/power/apc,/turf/simulated/wall,/area/maintenance/electrical)
+"c" = (/obj/machinery/power/port_gen/pacman,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"d" = (/obj/item/stack/sheet/mineral/plasma,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"e" = (/obj/structure/cable{d1 = 2; d2 = 4; icon_state = "2-4"},/turf/simulated/floor/plating,/area/maintenance/electrical)
+"f" = (/obj/structure/cable{d2 = 8; icon_state = "0-8"},/turf/simulated/floor/plating,/area/maintenance/electrical)
+"g" = (/obj/machinery/power/apc,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"h" = (/turf/simulated/floor/plating,/area/maintenance/electrical)
+"i" = (/obj/machinery/power/smes,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"j" = (/obj/structure/cable{d1 = 1; d2 = 4; icon_state = "1-4"},/turf/simulated/floor/plating,/area/maintenance/electrical)
+"k" = (/obj/structure/cable{d1 = 4; d2 = 8; icon_state = "4-8"},/turf/simulated/floor/plating,/area/maintenance/electrical)
+"l" = (/obj/structure/cable{d1 = 1; d2 = 8; icon_state = "1-8"},/turf/simulated/floor/plating,/area/maintenance/electrical)
+"m" = (/obj/item/mecha_parts/mecha_equipment/cable_layer,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"n" = (/obj/item/device/powersink,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"o" = (/obj/structure/cable,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"p" = (/obj/machinery/computer,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"q" = (/obj/machinery/gravity_generator,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"r" = (/obj/machinery/suit_storage_unit/engine,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"s" = (/turf/simulated/floor/plating,/area/shuttle/arrival)
+"t" = (/obj/effect/landmark/start,/turf/simulated/floor/plating,/area/shuttle/arrival)
+"u" = (/obj/effect/landmark/latejoin,/turf/simulated/floor/plating,/area/shuttle/arrival)
+"v" = (/obj/effect/manifest,/turf/simulated/floor/plating,/area/maintenance/electrical)
+"w" = (/obj/effect/manifest,/turf/simulated/floor/plating,/area/shuttle/arrival)
+"x" = (/obj/effect/manifest,/turf/simulated/wall,/area/maintenance/electrical)
+"y" = (/obj/screen/blob,/turf/simulated/floor/plating,/area/maintenance/electrical)
+
+(1,1,1) = {"
+aaaaaaabaaaaaaaa
+acddddefghhihiha
+ajkkkklmhnhohoha
+aoophphhhhoohoha
+aohomohhhhhhhoha
+qooooooooophhoha
+ahhhhrssshhhhhha
+ahhhhhstshhhhhha
+ahhhhhsushhhhhha
+ahhvhhswshhhhhha
+ahhhhhhhhhhhhhha
+ahhhhhhhhhhhhhha
+xhhhphhhyhhphhha
+avhhhhhhhhhhhhha
+ahhhhhhhhhhhhhha
+aaaaaaaaaaaaaaaa
+"}
