@@ -93,6 +93,33 @@ Class Procs:
 	Compiled by Aygar
 */
 
+/**
+
+   stat (bitflag)
+      Machine status bit flags.
+      Possible bit flags:
+         BROKEN:1 -- Machine is broken
+         NOPOWER:2 -- No power is being supplied to machine.
+         POWEROFF:4 -- tbd
+         MAINT:8 -- machine is currently under going maintenance.
+         EMPED:16 -- temporary broken by EMP pulse
+
+*/
+
+#define MACHINERY_ISBROKEN(machine) (machine.stat&1)
+#define MACHINERY_ISNOTPOWERED(machine) (machine.stat&2)
+#define MACHINERY_ISPOWEREDOFF(machine) (machine.stat&4)
+#define MACHINERY_ISUNDERGOINGMAINTENANCE(machine) (machine.stat&8)
+#define MACHINERY_ISBROKENBYEMP(machine) (machine.stat&16)
+
+
+
+#define MACHINERY_SETBROKEN(machine) machine.stat |= BROKEN
+
+#define MACHINERY_SETNOPOWER(machine) machine.stat |= NOPOWER
+#define MACHINERY_SETPOWERED(machine) machine.stat &= ~NOPOWER
+
+
 /obj/machinery
 	name = "machinery"
 	icon = 'icons/obj/stationobjs.dmi'
@@ -100,12 +127,12 @@ Class Procs:
 	pressure_resistance = 10
 	var/stat = 0
 	var/emagged = 0
-	var/use_power = 1
-		//0 = dont run the auto
-		//1 = run auto, use idle
-		//2 = run auto, use active
-	var/idle_power_usage = 0
-	var/active_power_usage = 0
+	//FOLIX TODO: remove these 3
+	var/use_power=0
+	var/idle_power=0
+	var/active_power_usage=0
+	var/idle_power_usage=0
+
 	var/power_channel = EQUIP
 		//EQUIP,ENVIRON or LIGHT
 	var/list/component_parts = null //list of all the parts used to build it, if made from certain kinds of frames.
@@ -116,6 +143,7 @@ Class Procs:
 	var/mob/living/occupant = null
 	var/unsecuring_tool = /obj/item/weapon/wrench
 	var/interact_offline = 0 // Can the machine be interacted with while de-powered.
+	var/datum/power/PowerNode/powerNode=null
 
 /obj/machinery/New()
 	..()
@@ -390,6 +418,8 @@ Class Procs:
 
 //called on deconstruction before the final deletion
 /obj/machinery/proc/deconstruction()
+	if(powerNode!=null)
+		powerNode.dispose()
 	return
 
 /obj/machinery/allow_drop()

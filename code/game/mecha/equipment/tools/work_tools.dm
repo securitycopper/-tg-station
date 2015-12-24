@@ -408,20 +408,18 @@
 	NC.d2 = fdirn
 	NC.updateicon()
 
-	var/datum/powernet/PN
+	var/datum/power/PowerNetwork/PN = null
 	if(last_piece && last_piece.d2 != chassis.dir)
 		last_piece.d1 = min(last_piece.d2, chassis.dir)
 		last_piece.d2 = max(last_piece.d2, chassis.dir)
 		last_piece.updateicon()
-		PN = last_piece.powernet
+		PN = last_piece.parentNetwork
 
 	if(!PN)
 		PN = new()
 		powernets += PN
-	NC.powernet = PN
-	PN.cables += NC
-	NC.mergeConnectedNetworks(NC.d2)
+	NC.parentNetwork = PN
+	autoMergePowerNetwork(NC)
 
-	//NC.mergeConnectedNetworksOnTurf()
 	last_piece = NC
 	return 1

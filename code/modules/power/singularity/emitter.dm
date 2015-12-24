@@ -9,8 +9,6 @@
 	density = 1
 	req_access = list(access_engine_equip)
 
-	use_power = 0
-	idle_power_usage = 10
 	active_power_usage = 300
 
 	var/active = 0
@@ -34,6 +32,8 @@
 	component_parts += new /obj/item/weapon/stock_parts/micro_laser(null)
 	component_parts += new /obj/item/weapon/stock_parts/manipulator(null)
 	RefreshParts()
+	powerNode=new /datum/power/PowerNode(name)
+
 
 /obj/machinery/power/emitter/RefreshParts()
 	var/max_firedelay = 120
@@ -87,7 +87,7 @@
 	return ..()
 
 /obj/machinery/power/emitter/update_icon()
-	if (active && powernet && avail(active_power_usage))
+	if (active && POWERNODE_ISON(powerNode))
 		icon_state = "emitter_+a"
 	else
 		icon_state = "emitter"
@@ -96,18 +96,20 @@
 /obj/machinery/power/emitter/attack_hand(mob/user)
 	src.add_fingerprint(user)
 	if(state == 2)
-		if(!powernet)
+		if(powerNode.sources.len==0)
 			user << "<span class='warning'>The emitter isn't connected to a wire!</span>"
 			return 1
 		if(!src.locked)
 			if(src.active==1)
 				src.active = 0
+				powerNode.setPower(0)
 				user << "<span class='notice'>You turn off \the [src].</span>"
 				message_admins("Emitter turned off by [key_name_admin(user)](<A HREF='?_src_=holder;adminmoreinfo=\ref[user]'>?</A>) (<A HREF='?_src_=holder;adminplayerobservefollow=\ref[user]'>FLW</A>) in ([x],[y],[z] - <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[x];Y=[y];Z=[z]'>JMP</a>)",0,1)
 				log_game("Emitter turned off by [key_name(user)] in ([x],[y],[z])")
 				investigate_log("turned <font color='red'>off</font> by [key_name(user)]","singulo")
 			else
 				src.active = 1
+				powerNode.setPower(active_power_usage)
 				user << "<span class='notice'>You turn on \the [src].</span>"
 				src.shot_number = 0
 				src.fire_delay = maximum_fire_delay
@@ -128,30 +130,33 @@
 			src.use_power = 1	*/
 	return 1
 
+obj/machinery/power/emitter/powerNode_event(var/datum/power/PowerNode, var/powerNodeEvent)
+	..()
+	switch(powerNodeEvent)
+		if(POWER_STATE_OFF)
+			powered = 0
+			update_icon()
+			investigate_log("lost power and turned <font color='red'>off</font>","singulo")
+			log_game("Emitter lost power in ([x],[y],[z])")
+			message_admins("Emitter lost power in ([x],[y],[z] - <a href='?_src_=holder;adminplayerobservecoodjump=1;X=[x];Y=[y];Z=[z]'>JMP</a>)",0,1)
+			src.active = 0
+			update_icon()
+		if(POWER_STATE_ON)
+			powered = 1
+			update_icon()
+			investigate_log("regained power and turned <font color='green'>on</font>","singulo")
+
 
 /obj/machinery/power/emitter/process()
 	if(stat & (BROKEN))
+		powerNode.setPower(0)
 		return
-	if(src.state != 2 || (!powernet && active_power_usage))
-		src.active = 0
-		update_icon()
+	if(POWERNODE_ISOFF(powerNode))
+
 		return
+	//Emmiter is On
 	if(((src.last_shot + src.fire_delay) <= world.time) && (src.active == 1))
 
-		if(!active_power_usage || avail(active_power_usage))
-			add_load(active_power_usage)
-			if(!powered)
-				powered = 1
-				update_icon()
-				investigate_log("regained power and turned <font color='green'>on</font>","singulo")
-		else
-			if(powered)
-				powered = 0
-				update_icon()
-				investigate_log("lost power and turned <font color='red'>off</font>","singulo")
-				log_game("Emitter lost power in ([x],[y],[z])")
-				message_admins("Emitter lost power in ([x],[y],[z] - <a href='?_src_=holder;adminplayerobservecoodjump=1;X=[x];Y=[y];Z=[z]'>JMP</a>)",0,1)
-			return
 
 		src.last_shot = world.time
 		if(src.shot_number < 3)

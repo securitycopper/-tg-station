@@ -39,17 +39,46 @@
 	var/obj/machinery/power/terminal/terminal = null
 
 	var/static/list/smesImageCache
+	var/datum/power/PowerNetwork/internalNetwork=null
 
 
 /obj/machinery/power/smes/New()
 	..()
+	internalNetwork=new /datum/power/PowerNetwork()
+
 	component_parts = list()
 	component_parts += new /obj/item/weapon/circuitboard/smes(null)
-	component_parts += new /obj/item/weapon/stock_parts/cell/high(null)
-	component_parts += new /obj/item/weapon/stock_parts/cell/high(null)
-	component_parts += new /obj/item/weapon/stock_parts/cell/high(null)
-	component_parts += new /obj/item/weapon/stock_parts/cell/high(null)
-	component_parts += new /obj/item/weapon/stock_parts/cell/high(null)
+
+	//Cell 1
+	var/obj/item/weapon/stock_parts/cell1 = new /obj/item/weapon/stock_parts/cell/high(null)
+	var/datum/power/PowerNode/CellAdapter/ca1 = new /datum/power/PowerNode/CellAdapter(cell1)
+	ca1.addPowerNetwork(internalNetwork)
+	component_parts += cell1
+
+	//Cell 2
+	var/obj/item/weapon/stock_parts/cell2 = new /obj/item/weapon/stock_parts/cell/high(null)
+	var/datum/power/PowerNode/CellAdapter/ca2 = new /datum/power/PowerNode/CellAdapter(cell2)
+	ca2.addPowerNetwork(internalNetwork)
+	component_parts += cell2
+
+	//Cell 3
+	var/obj/item/weapon/stock_parts/cell3 = new /obj/item/weapon/stock_parts/cell/high(null)
+	var/datum/power/PowerNode/CellAdapter/ca3 = new /datum/power/PowerNode/CellAdapter(cell3)
+	ca3.addPowerNetwork(internalNetwork)
+	component_parts += cell3
+
+	//Cell 4
+	var/obj/item/weapon/stock_parts/cell4 = new /obj/item/weapon/stock_parts/cell/high(null)
+	var/datum/power/PowerNode/CellAdapter/ca4 = new /datum/power/PowerNode/CellAdapter(cell4)
+	ca4.addPowerNetwork(internalNetwork)
+	component_parts += cell4
+
+	//Cell 5
+	var/obj/item/weapon/stock_parts/cell5 = new /obj/item/weapon/stock_parts/cell/high(null)
+	var/datum/power/PowerNode/CellAdapter/ca5 = new /datum/power/PowerNode/CellAdapter(cell5)
+	ca5.addPowerNetwork(internalNetwork)
+	component_parts += cell5
+
 	component_parts += new /obj/item/weapon/stock_parts/capacitor(null)
 	component_parts += new /obj/item/stack/cable_coil(null, 5)
 	RefreshParts()
@@ -63,7 +92,7 @@
 						break dir_loop
 
 		if(!terminal)
-			stat |= BROKEN
+			MACHINERY_SETBROKEN(src)
 			return
 		terminal.master = src
 		update_icon()
@@ -282,36 +311,18 @@
 // called after all power processes are finished
 // restores charge level to smes if there was excess this ptick
 /obj/machinery/power/smes/proc/restore()
-	if(stat & BROKEN)
+	if(MACHINERY_ISBROKEN(src))
 		return
 
 	if(!outputting)
 		output_used = 0
 		return
 
-	var/excess = powernet.netexcess		// this was how much wasn't used on the network last ptick, minus any removed by other SMESes
-
-	excess = min(output_used, excess)				// clamp it to how much was actually output by this SMES last ptick
-
-	excess = min((capacity-charge)/SMESRATE, excess)	// for safety, also limit recharge by space capacity of SMES (shouldn't happen)
-
-	// now recharge this amount
-
-	var/clev = chargedisplay()
-
-	charge += excess * SMESRATE			// restore unused power
-	powernet.netexcess -= excess		// remove the excess from the powernet, so later SMESes don't try to use it
-
-	output_used -= excess
-
-	if(clev != chargedisplay() ) //if needed updates the icons overlay
-		update_icon()
+	//Folix: TODO: Remove this proc
 	return
 
 
-/obj/machinery/power/smes/add_load(amount)
-	if(terminal && terminal.powernet)
-		terminal.powernet.load += amount
+
 
 /obj/machinery/power/smes/attack_hand(mob/user)
 	if (!user)

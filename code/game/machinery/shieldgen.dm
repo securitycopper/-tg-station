@@ -274,7 +274,6 @@
 		density = 1
 		req_access = list(access_teleporter)
 		var/active = 0
-		var/power = 0
 		var/steps = 0
 		var/last_check = 0
 		var/check_delay = 10
@@ -283,36 +282,12 @@
 		var/destroyed = 0
 //		var/maxshieldload = 200
 		var/obj/structure/cable/attached		// the attached cable
-		var/storedpower = 0
+		//TODO:FOLIX: This machine needs an internal battery.
 		flags = CONDUCT
-		use_power = 0
 
-/obj/machinery/shieldwallgen/proc/power()
-	if(!anchored)
-		power = 0
-		return 0
-	var/turf/T = src.loc
 
-	var/obj/structure/cable/C = T.get_cable_node()
-	var/datum/powernet/PN
-	if(C)	PN = C.powernet		// find the powernet of the connected cable
 
-	if(!PN)
-		power = 0
-		return 0
 
-	var/surplus = max(PN.avail-PN.load, 0)
-	var/shieldload = min(rand(50,200), surplus)
-	if(shieldload==0 && !storedpower)		// no cable or no power, and no power stored
-		power = 0
-		return 0
-	else
-		power = 1	// IVE GOT THE POWER!
-		if(PN) //runtime errors fixer. They were caused by PN.newload trying to access missing network in case of working on stored power.
-			storedpower += shieldload
-			PN.load += shieldload //uses powernet power.
-//		message_admins("[PN.load]")
-//		use_power(250) //uses APC power
 
 /obj/machinery/shieldwallgen/attack_hand(mob/user)
 	if(!anchored)
@@ -342,15 +317,7 @@
 	src.add_fingerprint(user)
 
 /obj/machinery/shieldwallgen/process()
-	power()
-	if(power)
-		storedpower -= 50 //this way it can survive longer and survive at all
-	if(storedpower >= maxstoredpower)
-		storedpower = maxstoredpower
-	if(storedpower <= 0)
-		storedpower = 0
-//	if(shieldload >= maxshieldload) //there was a loop caused by specifics of process(), so this was needed.
-//		shieldload = maxshieldload
+
 
 	if(src.active == 1)
 		if(!anchored)
@@ -362,7 +329,7 @@
 		setup_field(8)
 		src.active = 2
 	if(src.active >= 1)
-		if(src.power == 0)
+		if(POWERNODE_ISOFF(powerNode))
 			src.visible_message("<span class='danger'>The [src.name] shuts down due to lack of power!</span>", \
 				"<span class='italics'>You hear heavy droning fade out.</span>")
 			icon_state = "Shield_Gen"
@@ -486,7 +453,7 @@
 		density = 1
 		unacidable = 1
 		luminosity = 3
-		var/needs_power = 0
+
 		var/active = 1
 		var/delay = 5
 		var/last_active
@@ -503,6 +470,11 @@
 	for(var/mob/living/L in get_turf(src.loc))
 		visible_message("<span class='danger'>\The [src] is suddenly occupying the same space as \the [L]'s organs!</span>")
 		L.gib()
+
+	//TODO:FOLIX: This poc needs to be rewritten. static power for shield walls.
+	powerNode = new(name)
+	powerNode.setPower(125)
+
 
 /obj/machinery/shieldwall/attack_hand(mob/user)
 	return

@@ -15,15 +15,32 @@ proc/global/getUniqueID()
 	return currentUniqueId
 
 
+/datum/subsystem/PowerNetworkController
+	var/datum/PowerNetworkController/controller = null
+/datum/subsystem/PowerNetworkController/New()
+	name="PowerNetworkController"
+	controller = new /datum/PowerNetworkController()
+	NEW_SS_GLOBAL(src)
+
+/datum/subsystem/PowerNetworkController/fire()
+	controller.processPower()
+
 
 /datum/PowerNetworkController
 
 
 /datum/PowerNetworkController/proc/processPower()
-	//world<<"PowerNetworkController processPower"
+	world<<"PowerNetworkController processPower"
 	//Simulate an iteration
+
+	var/list/toRemoveOnDemandProducer = list()
 	for(var/datum/power/PowerNode/powerNodeProducer in powerControllerPowerNodeProducerProcessingLoopList)
-		powerNodeProducer.processTick()
+		if(powerNodeProducer.processTick()==0)
+			toRemoveOnDemandProducer+=powerNodeProducer
+	for(var/datum/power/PowerNode/node in toRemoveOnDemandProducer)
+		powerControllerPowerNodeProducerProcessingLoopList-=node
+
+
 
 	//Process PowerNetworks that requested ticks
 	var/list/toRemovePowerNetwork = list()

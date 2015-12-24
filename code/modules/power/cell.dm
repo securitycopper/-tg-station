@@ -138,10 +138,7 @@
 	ex_act(1)
 
 /obj/item/weapon/stock_parts/cell/proc/get_electrocute_damage()
-	if(charge >= 1000)
-		return Clamp(round(charge/10000), 10, 90) + rand(-5,5)
-	else
-		return 0
+	return electrocute_damage(charge)
 
 /* Cell variants*/
 /obj/item/weapon/stock_parts/cell/crap

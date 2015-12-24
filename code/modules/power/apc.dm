@@ -49,7 +49,7 @@
 
 	icon_state = "apc0"
 	anchored = 1
-	use_power = 0
+
 	req_access = list(access_engine_equip)
 	var/area/area
 	var/areastring = null
@@ -76,7 +76,7 @@
 	var/lastused_total = 0
 	var/main_status = 0
 	var/wiresexposed = 0
-	powernet = 0		// set so that APCs aren't found as powernet nodes //Hackish, Horrible, was like this before I changed it :(
+
 	var/malfhack = 0 //New var for my changes to AI malf. --NeoFite
 	var/mob/living/silicon/ai/malfai = null //See above --NeoFite
 //	luminosity = 1
@@ -903,9 +903,6 @@
 	else
 		return 0
 
-/obj/machinery/power/apc/add_load(amount)
-	if(terminal && terminal.powernet)
-		terminal.powernet.load += amount
 
 /obj/machinery/power/apc/avail()
 	if(terminal)

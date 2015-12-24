@@ -9,28 +9,21 @@
 	idle_power_usage = 20
 	active_power_usage = 80
 	circuit = /obj/item/weapon/circuitboard/powermonitor
-	var/datum/powernet/powernet = null
+
 
 //fix for issue 521, by QualityVan.
 //someone should really look into why circuits have a powernet var, it's several kinds of retarded.
 /obj/machinery/computer/monitor/New()
 	..()
-	var/obj/structure/cable/attached = null
 	var/turf/T = loc
 	if(isturf(T))
-		attached = locate() in T
-	if(attached)
-		powernet = attached.get_powernet()
+		var/obj/structure/cable/attached = locate() in T
+		if(attached!=null)
+			powerNode=new /datum/power/PowerNode(name)
+			powerNode.setPower(idle_power_usage)
 
-/obj/machinery/computer/monitor/process() //oh shit, somehow we didnt end up with a powernet... lets look for one.
-	if(!powernet)
-		var/obj/structure/cable/attached = null
-		var/turf/T = loc
-		if(isturf(T))
-			attached = locate() in T
-		if(attached)
-			powernet = attached.get_powernet()
-	return
+			powerNode.addPowerNetwork(CABLE_GETPOWERNETWORK(attached))
+
 
 /obj/machinery/computer/monitor/attack_hand(mob/user)
 	if(..())
@@ -50,17 +43,22 @@
 
 	t += "<A href='?src=\ref[src];update=1'>Refresh</A> <A href='?src=\ref[src];close=1'>Close</A><br /><br />"
 
-	if(!powernet)
+	var/datum/power/PowerNetwork/attachedNetwork=POWERNODE_PARENTNETWORK(powerNode)
+	if(attachedNetwork==null)
 		t += "<span class='danger'>No connection.</span>"
 	else
 
 		var/list/L = list()
-		for(var/obj/machinery/power/terminal/term in powernet.nodes)
-			if(istype(term.master, /obj/machinery/power/apc))
-				var/obj/machinery/power/apc/A = term.master
-				L += A
 
-		t += "<PRE>Total power: [powernet.avail] W<BR>Total load:  [num2text(powernet.viewload,10)] W<BR>"
+		//Find all apcs attached to same PowerNetwork as this computer and add them to list L
+		for(var/obj/machinery/power/apc/apc in apcs_list)
+			var/datum/power/PowerNode/apcPowerNode =apc.powerNode
+			if(apcPowerNode!=null && POWERNODE_PARENTNETWORK(apcPowerNode)==attachedNetwork)
+				L += apc
+
+
+
+		t += "<PRE>Total power: [POWERNETWORK_GETSUPPLY(attachedNetwork)] W<BR>Total load:  [num2text(POWERNETWORK_GETLOAD(attachedNetwork),10)] W<BR>"
 
 		t += "<FONT SIZE=-1>"
 

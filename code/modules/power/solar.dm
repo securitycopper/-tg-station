@@ -114,13 +114,13 @@
 	//isn't the power recieved from the incoming light proportionnal to cos(p_angle) (Lambert's cosine law) rather than cos(p_angle)^2 ?
 
 /obj/machinery/power/solar/process()//TODO: remove/add this from machines to save on processing as needed ~Carn PRIORITY
-	if(stat & BROKEN)
+	if(MACHINERY_ISBROKEN(src))
 		return
-	if(!control) //if there's no sun or the panel is not linked to a solar control computer, no need to proceed
+	if(control==null) //if there's no sun or the panel is not linked to a solar control computer, no need to proceed
 		return
 
-	if(powernet)
-		if(powernet == control.powernet)//check if the panel is still connected to the computer
+	if(powerNode!=null)
+		if(POWERNODE_PARENTNETWORK(powerNode) == POWERNODE_PARENTNETWORK(control.powerNode))//check if the panel is still connected to the computer
 			if(obscured) //get no light from the sun, so don't generate power
 				return
 			var/sgen = SOLARGENRATE * sunfrac

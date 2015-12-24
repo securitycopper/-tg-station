@@ -13,11 +13,60 @@
 	var/requestedPowerUsage=0
 
 
+	var/listener=null
+
+	var/power_type=POWER_TYPE_NOTSET
+
+
+/obj/machinery/proc/powerNode_event(var/datum/power/PowerNode, var/powerNodeEvent)
+	switch(powerNodeEvent)
+		if(POWER_STATE_OFF)
+			stat=stat|2
+		if(POWER_STATE_ON)
+			stat=stat&!8
+
+
+	//TODO: Add more events
+
+
+
+
+
 /datum/power/PowerNode/New(var/powerNodeName)
 	uuid=getUniqueID()
 	if(powerNodeName!=null)
 		name=powerNodeName
 
+
+
+
+
+/datum/power/PowerNode/proc/dispose()
+	setPower(0)
+	if(sources!=null)
+		for(var/datum/power/PowerNetwork/source in sources)
+			source.attached-=source
+			source.flagAsChanged()
+		selectedSource=null
+		sources=null
+	//END OF PROC
+
+/datum/power/PowerNode/proc/sendEvent(var/powerNodeEvent)
+	if(listener!=null)
+		listener:powerNode_event(src,powerNodeEvent)
+	//END OF PROC
+
+
+/datum/power/PowerNode/proc/removePowerNetwork(var/datum/power/PowerNetwork/network)
+	if(selectedSource!=network)
+		sources-=network
+	else
+		var/oldValue=currentPowerUsage
+		setPower(0)
+		selectedSource=null
+		sources-=network
+		setPower(oldValue)
+	//END OF PROC
 
 
 /datum/power/PowerNode/proc/addPowerNetwork(var/datum/power/PowerNetwork/network)
@@ -119,4 +168,7 @@
 
 
 //abstract Methods
+
+//Return 0 if it should be removed from the controller
 /datum/power/PowerNode/proc/processTick()
+/datum/power/PowerNode/proc/flagForProcessing()

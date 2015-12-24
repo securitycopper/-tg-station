@@ -23,6 +23,8 @@
 									'sound/ambience/ambigen8.ogg','sound/ambience/ambigen9.ogg',\
 									'sound/ambience/ambigen10.ogg','sound/ambience/ambigen11.ogg',\
 									'sound/ambience/ambigen12.ogg','sound/ambience/ambigen14.ogg')
+	var/datum/power/PowerNetwork/powerNetwork = null
+
 
 /area/New()
 	icon_state = ""
@@ -31,6 +33,9 @@
 	uid = ++global_uid
 	related = list(src)
 	map_name = name // Save the initial (the name set in the map) name of the area.
+
+	powerNetwork=new /datum/power/PowerNetwork()
+	powerNetwork.name=name
 
 	if(requires_power)
 		luminosity = 0

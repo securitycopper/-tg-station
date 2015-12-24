@@ -2,6 +2,7 @@
 /datum/power/PowerNetwork
 	var/uuid=0
 
+	var/name="Unkown Power Network"
 	//ManagedBy: PowerNetwork
 	var/currentSupply=0
 	var/currentLoad=0
