@@ -4,7 +4,8 @@
 	icon_state = "larva0"
 	pass_flags = PASSTABLE | PASSMOB
 	mob_size = MOB_SIZE_SMALL
-	density = 0
+	density = FALSE
+	hud_type = /datum/hud/larva
 
 	maxHealth = 25
 	health = 25
@@ -18,11 +19,11 @@
 
 
 //This is fine right now, if we're adding organ specific damage this needs to be updated
-/mob/living/carbon/alien/larva/New()
+/mob/living/carbon/alien/larva/Initialize()
 
 	AddAbility(new/obj/effect/proc_holder/alien/hide(null))
 	AddAbility(new/obj/effect/proc_holder/alien/larva_evolve(null))
-	..()
+	. = ..()
 
 /mob/living/carbon/alien/larva/create_internal_organs()
 	internal_organs += new /obj/item/organ/alien/plasmavessel/small/tiny
@@ -56,7 +57,7 @@
 /mob/living/carbon/alien/larva/toggle_throw_mode()
 	return
 
-/mob/living/carbon/alien/larva/start_pulling()
+/mob/living/carbon/alien/larva/start_pulling(atom/movable/AM, state, force = move_force, supress_message = FALSE)
 	return
 
 /mob/living/carbon/alien/larva/stripPanelUnequip(obj/item/what, mob/who)

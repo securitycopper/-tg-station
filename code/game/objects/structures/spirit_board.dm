@@ -3,8 +3,8 @@
 	desc = "A wooden board with letters etched into it, used in seances."
 	icon = 'icons/obj/objects.dmi'
 	icon_state = "spirit_board"
-	density = 1
-	anchored = 0
+	density = TRUE
+	anchored = FALSE
 	var/virgin = 1
 	var/next_use = 0
 	var/planchette = "A"
@@ -15,14 +15,16 @@
 	..()
 
 /obj/structure/spirit_board/attack_hand(mob/user)
-	if(..())
+	. = ..()
+	if(.)
 		return
 	spirit_board_pick_letter(user)
 
 
+//ATTACK GHOST IGNORING PARENT RETURN VALUE
 /obj/structure/spirit_board/attack_ghost(mob/dead/observer/user)
 	spirit_board_pick_letter(user)
-
+	return ..()
 
 /obj/structure/spirit_board/proc/spirit_board_pick_letter(mob/M)
 	if(!spirit_board_checks(M))
@@ -35,7 +37,7 @@
 	planchette = input("Choose the letter.", "Seance!") as null|anything in list("A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z")
 	if(!planchette || !Adjacent(M) || next_use > world.time)
 		return
-	add_logs(M, src, "picked a letter on", " which was \"[planchette]\".")
+	M.log_message("picked a letter on [src], which was \"[planchette]\".", LOG_GAME)
 	next_use = world.time + rand(30,50)
 	lastuser = M.ckey
 	//blind message is the same because not everyone brings night vision to seances
@@ -57,7 +59,7 @@
 	light_amount = T.get_lumcount()
 
 
-	if(light_amount > 2)
+	if(light_amount > 0.2)
 		to_chat(M, "<span class='warning'>It's too bright here to use [src.name]!</span>")
 		return 0
 

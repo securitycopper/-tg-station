@@ -3,17 +3,17 @@
 #define HEATER_MODE_COOL	"cool"
 
 /obj/machinery/space_heater
-	anchored = 0
-	density = 1
-	interact_open = TRUE
+	anchored = FALSE
+	density = TRUE
+	interaction_flags_machine = INTERACT_MACHINE_WIRES_IF_OPEN | INTERACT_MACHINE_ALLOW_SILICON | INTERACT_MACHINE_OPEN
 	icon = 'icons/obj/atmos.dmi'
 	icon_state = "sheater-off"
 	name = "space heater"
-	desc = "Made by Space Amish using traditional space techniques, this heater/cooler is guaranteed not to set the station on fire."
-	obj_integrity = 250
+	desc = "Made by Space Amish using traditional space techniques, this heater/cooler is guaranteed not to set the station on fire. Warranty void if used in engines."
 	max_integrity = 250
-	armor = list(melee = 0, bullet = 0, laser = 0, energy = 0, bomb = 0, bio = 100, rad = 100, fire = 80, acid = 10)
-	var/obj/item/weapon/stock_parts/cell/cell
+	armor = list("melee" = 0, "bullet" = 0, "laser" = 0, "energy" = 0, "bomb" = 0, "bio" = 100, "rad" = 100, "fire" = 80, "acid" = 10)
+	circuit = /obj/item/circuitboard/machine/space_heater
+	var/obj/item/stock_parts/cell/cell
 	var/on = FALSE
 	var/mode = HEATER_MODE_STANDBY
 	var/setMode = "auto" // Anything other than "heat" or "cool" is considered auto.
@@ -24,21 +24,13 @@
 	var/settableTemperatureMedian = 30 + T0C
 	var/settableTemperatureRange = 30
 
-/obj/machinery/space_heater/New()
-	..()
-	cell = new(src)
-	var/obj/item/weapon/circuitboard/machine/B = new /obj/item/weapon/circuitboard/machine/space_heater(null)
-	B.apply_default_parts(src)
-	update_icon()
+/obj/machinery/space_heater/get_cell()
+	return cell
 
-/obj/item/weapon/circuitboard/machine/space_heater
-	name = "Space Heater (Machine Board)"
-	build_path = /obj/machinery/space_heater
-	origin_tech = "programming=2;engineering=2;plasmatech=2"
-	req_components = list(
-							/obj/item/weapon/stock_parts/micro_laser = 1,
-							/obj/item/weapon/stock_parts/capacitor = 1,
-							/obj/item/stack/cable_coil = 3)
+/obj/machinery/space_heater/Initialize()
+	. = ..()
+	cell = new(src)
+	update_icon()
 
 /obj/machinery/space_heater/on_construction()
 	qdel(cell)
@@ -60,6 +52,8 @@
 		to_chat(user, "The charge meter reads [cell ? round(cell.percent(), 1) : 0]%.")
 	else
 		to_chat(user, "There is no power cell installed.")
+	if(in_range(user, src) || isobserver(user))
+		to_chat(user, "<span class='notice'>The status display reads: Temperature range at <b>[settableTemperatureRange]°C</b>.<br>Heating power at <b>[heatingPower*0.001]kJ</b>.<br>Power consumption at <b>[(efficiency*-0.0025)+150]%</b>.<span>") //100%, 75%, 50%, 25%
 
 /obj/machinery/space_heater/update_icon()
 	if(on)
@@ -73,7 +67,9 @@
 
 /obj/machinery/space_heater/process()
 	if(!on || !is_operational())
-		return
+		if (on) // If it's broken, turn it off too
+			on = FALSE
+		return PROCESS_KILL
 
 	if(cell && cell.charge > 0)
 		var/turf/L = loc
@@ -115,13 +111,14 @@
 	else
 		on = FALSE
 		update_icon()
+		return PROCESS_KILL
 
 /obj/machinery/space_heater/RefreshParts()
 	var/laser = 0
 	var/cap = 0
-	for(var/obj/item/weapon/stock_parts/micro_laser/M in component_parts)
+	for(var/obj/item/stock_parts/micro_laser/M in component_parts)
 		laser += M.rating
-	for(var/obj/item/weapon/stock_parts/capacitor/M in component_parts)
+	for(var/obj/item/stock_parts/capacitor/M in component_parts)
 		cap += M.rating
 
 	heatingPower = laser * 40000
@@ -129,53 +126,47 @@
 	settableTemperatureRange = cap * 30
 	efficiency = (cap + 1) * 10000
 
-	targetTemperature = Clamp(targetTemperature,
+	targetTemperature = CLAMP(targetTemperature,
 		max(settableTemperatureMedian - settableTemperatureRange, TCMB),
 		settableTemperatureMedian + settableTemperatureRange)
 
 /obj/machinery/space_heater/emp_act(severity)
-	if(stat & (BROKEN|NOPOWER))
-		..(severity)
+	. = ..()
+	if(stat & (NOPOWER|BROKEN) || . & EMP_PROTECT_CONTENTS)
 		return
 	if(cell)
 		cell.emp_act(severity)
-	..(severity)
 
 /obj/machinery/space_heater/attackby(obj/item/I, mob/user, params)
 	add_fingerprint(user)
-	if(istype(I, /obj/item/weapon/stock_parts/cell))
+	if(istype(I, /obj/item/stock_parts/cell))
 		if(panel_open)
 			if(cell)
 				to_chat(user, "<span class='warning'>There is already a power cell inside!</span>")
 				return
-			else
-				// insert cell
-				var/obj/item/weapon/stock_parts/cell/C = usr.get_active_held_item()
-				if(istype(C))
-					if(!user.drop_item())
-						return
-					cell = C
-					C.loc = src
-					C.add_fingerprint(usr)
+			else if(!user.transferItemToLoc(I, src))
+				return
+			cell = I
+			I.add_fingerprint(usr)
 
-					user.visible_message("\The [user] inserts a power cell into \the [src].", "<span class='notice'>You insert the power cell into \the [src].</span>")
-					SStgui.update_uis(src)
+			user.visible_message("\The [user] inserts a power cell into \the [src].", "<span class='notice'>You insert the power cell into \the [src].</span>")
+			SStgui.update_uis(src)
 		else
 			to_chat(user, "<span class='warning'>The hatch must be open to insert a power cell!</span>")
 			return
-	else if(istype(I, /obj/item/weapon/screwdriver))
+	else if(I.tool_behaviour == TOOL_SCREWDRIVER)
 		panel_open = !panel_open
 		user.visible_message("\The [user] [panel_open ? "opens" : "closes"] the hatch on \the [src].", "<span class='notice'>You [panel_open ? "open" : "close"] the hatch on \the [src].</span>")
 		update_icon()
 		if(panel_open)
 			interact(user)
-	else if(exchange_parts(user, I) || default_deconstruction_crowbar(I))
+	else if(default_deconstruction_crowbar(I))
 		return
 	else
 		return ..()
 
-/obj/machinery/space_heater/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = 0, \
-										datum/tgui/master_ui = null, datum/ui_state/state = physical_state)
+/obj/machinery/space_heater/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, \
+										datum/tgui/master_ui = null, datum/ui_state/state = GLOB.physical_state)
 	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
 		ui = new(user, src, ui_key, "space_heater", name, 400, 305, master_ui, state)
@@ -215,6 +206,8 @@
 			mode = HEATER_MODE_STANDBY
 			usr.visible_message("[usr] switches [on ? "on" : "off"] \the [src].", "<span class='notice'>You switch [on ? "on" : "off"] \the [src].</span>")
 			update_icon()
+			if (on)
+				START_PROCESSING(SSmachines, src)
 			. = TRUE
 		if("mode")
 			setMode = params["mode"]
@@ -236,12 +229,12 @@
 				target= text2num(target) + T0C
 				. = TRUE
 			if(.)
-				targetTemperature = Clamp(round(target),
+				targetTemperature = CLAMP(round(target),
 					max(settableTemperatureMedian - settableTemperatureRange, TCMB),
 					settableTemperatureMedian + settableTemperatureRange)
 		if("eject")
 			if(panel_open && cell)
-				cell.loc = get_turf(src)
+				cell.forceMove(drop_location())
 				cell = null
 				. = TRUE
 

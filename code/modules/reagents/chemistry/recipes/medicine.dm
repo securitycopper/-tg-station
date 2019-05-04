@@ -165,6 +165,12 @@
 	results = list("mannitol" = 3)
 	required_reagents = list("sugar" = 1, "hydrogen" = 1, "water" = 1)
 	mix_message = "The solution slightly bubbles, becoming thicker."
+	
+/datum/chemical_reaction/neurine
+	name = "Neurine"
+	id = "neurine"
+	results = list("neurine" = 3)
+	required_reagents = list("mannitol" = 1, "acetone" = 1, "oxygen" = 1)
 
 /datum/chemical_reaction/mutadone
 	name = "Mutadone"
@@ -183,6 +189,12 @@
 	id = "cryoxadone"
 	results = list("cryoxadone" = 3)
 	required_reagents = list("stable_plasma" = 1, "acetone" = 1, "mutagen" = 1)
+
+/datum/chemical_reaction/pyroxadone
+	name = "Pyroxadone"
+	id = "pyroxadone"
+	results = list("pyroxadone" = 2)
+	required_reagents = list("cryoxadone" = 1, "slimejelly" = 1)
 
 /datum/chemical_reaction/clonexadone
 	name = "Clonexadone"
@@ -221,8 +233,34 @@
 	results = list("tricordrazine" = 3)
 	required_reagents = list("bicaridine" = 1, "kelotane" = 1, "antitoxin" = 1)
 
+/datum/chemical_reaction/regen_jelly
+	name = "Regenerative Jelly"
+	id = "regen_jelly"
+	results = list("regen_jelly" = 2)
+	required_reagents = list("tricordrazine" = 1, "slimejelly" = 1)
+
 /datum/chemical_reaction/corazone
 	name = "Corazone"
 	id = "corazone"
 	results = list("corazone" = 3)
 	required_reagents = list("phenol" = 2, "lithium" = 1)
+
+/datum/chemical_reaction/morphine
+	name = "Morphine"
+	id = "morphine"
+	results = list("morphine" = 2)
+	required_reagents = list("carbon" = 2, "hydrogen" = 2, "ethanol" = 1, "oxygen" = 1)
+	required_temp = 480
+
+/datum/chemical_reaction/modafinil
+	name = "Modafinil"
+	id = "modafinil"
+	results = list("modafinil" = 5)
+	required_reagents = list("diethylamine" = 1, "ammonia" = 1, "phenol" = 1, "acetone" = 1, "sacid" = 1)
+	required_catalysts = list("bromine" = 1) // as close to the real world synthesis as possible
+
+/datum/chemical_reaction/psicodine
+	name = "Psicodine"
+	id = "psicodine"
+	results = list("psicodine" = 5)
+	required_reagents = list( "mannitol" = 2, "water" = 2, "impedrezene" = 1)

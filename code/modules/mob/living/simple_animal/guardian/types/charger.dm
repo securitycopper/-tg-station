@@ -33,34 +33,34 @@
 
 /mob/living/simple_animal/hostile/guardian/charger/Shoot(atom/targeted_atom)
 	charging = 1
-	throw_at(targeted_atom, range, 1, src, 0, callback = CALLBACK(src, .proc/charging_end))
+	throw_at(targeted_atom, range, 1, src, FALSE, TRUE, callback = CALLBACK(src, .proc/charging_end))
 
 /mob/living/simple_animal/hostile/guardian/charger/proc/charging_end()
 	charging = 0
 
 /mob/living/simple_animal/hostile/guardian/charger/Move()
 	if(charging)
-		new /obj/effect/overlay/temp/decoy/fading(loc,src)
+		new /obj/effect/temp_visual/decoy/fading(loc,src)
 	. = ..()
 
 /mob/living/simple_animal/hostile/guardian/charger/snapback()
 	if(!charging)
 		..()
 
-/mob/living/simple_animal/hostile/guardian/charger/throw_impact(atom/A)
+/mob/living/simple_animal/hostile/guardian/charger/throw_impact(atom/hit_atom, datum/thrownthing/throwingdatum)
 	if(!charging)
 		return ..()
 
-	else if(A)
-		if(isliving(A) && A != summoner)
-			var/mob/living/L = A
-			var/blocked = 0
-			if(hasmatchingsummoner(A)) //if the summoner matches don't hurt them
-				blocked = 1
-			if(ishuman(A))
-				var/mob/living/carbon/human/H = A
-				if(H.check_shields(90, "[name]", src, attack_type = THROWN_PROJECTILE_ATTACK))
-					blocked = 1
+	else if(hit_atom)
+		if(isliving(hit_atom) && hit_atom != summoner)
+			var/mob/living/L = hit_atom
+			var/blocked = FALSE
+			if(hasmatchingsummoner(hit_atom)) //if the summoner matches don't hurt them
+				blocked = TRUE
+			if(ishuman(hit_atom))
+				var/mob/living/carbon/human/H = hit_atom
+				if(H.check_shields(src, 90, "[name]", attack_type = THROWN_PROJECTILE_ATTACK))
+					blocked = TRUE
 			if(!blocked)
 				L.drop_all_held_items()
 				L.visible_message("<span class='danger'>[src] slams into [L]!</span>", "<span class='userdanger'>[src] slams into you!</span>")

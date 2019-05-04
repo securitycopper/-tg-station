@@ -1,4 +1,3 @@
-#define MINIMUM_USEFUL_LIGHT_RANGE 1.4
 
 /atom
 	var/light_power = 1 // Intensity of the light.
@@ -23,6 +22,8 @@
 	if (l_color != NONSENSICAL_VALUE)
 		light_color = l_color
 
+	SEND_SIGNAL(src, COMSIG_ATOM_SET_LIGHT, l_range, l_power, l_color)
+
 	update_light()
 
 #undef NONSENSICAL_VALUE
@@ -35,11 +36,9 @@
 		return
 
 	if (!light_power || !light_range) // We won't emit light anyways, destroy the light source.
-		if(light)
-			light.destroy()
-			light = null
+		QDEL_NULL(light)
 	else
-		if (!istype(loc, /atom/movable)) // We choose what atom should be the top atom of the light here.
+		if (!ismovableatom(loc)) // We choose what atom should be the top atom of the light here.
 			. = src
 		else
 			. = loc
@@ -49,20 +48,15 @@
 		else
 			light = new/datum/light_source(src, .)
 
-// Destroy our light source so we GC correctly.
-/atom/Destroy()
-	if (light)
-		light.destroy()
-		light = null
-	. = ..()
-
 // If we have opacity, make sure to tell (potentially) affected light sources.
 /atom/movable/Destroy()
 	var/turf/T = loc
-	if (opacity && istype(T))
-		T.reconsider_lights()
-
 	. = ..()
+	if (opacity && istype(T))
+		var/old_has_opaque_atom = T.has_opaque_atom
+		T.recalc_atom_opacity()
+		if (old_has_opaque_atom != T.has_opaque_atom)
+			T.reconsider_lights()
 
 // Should always be used to change the opacity of an atom.
 // It notifies (potentially) affected light sources so they can update (if needed).
@@ -87,21 +81,55 @@
 
 /atom/movable/Moved(atom/OldLoc, Dir)
 	. = ..()
-	for (var/datum/light_source/L in light_sources) // Cycle through the light sources on this atom and tell them to update.
+	var/datum/light_source/L
+	var/thing
+	for (thing in light_sources) // Cycle through the light sources on this atom and tell them to update.
+		L = thing
 		L.source_atom.update_light()
 
 /atom/vv_edit_var(var_name, var_value)
 	switch (var_name)
 		if ("light_range")
 			set_light(l_range=var_value)
-			return
+			datum_flags |= DF_VAR_EDITED
+			return TRUE
 
 		if ("light_power")
 			set_light(l_power=var_value)
-			return
+			datum_flags |= DF_VAR_EDITED
+			return TRUE
 
 		if ("light_color")
 			set_light(l_color=var_value)
-			return
+			datum_flags |= DF_VAR_EDITED
+			return TRUE
 
 	return ..()
+
+
+/atom/proc/flash_lighting_fx(_range = FLASH_LIGHT_RANGE, _power = FLASH_LIGHT_POWER, _color = LIGHT_COLOR_WHITE, _duration = FLASH_LIGHT_DURATION, _reset_lighting = TRUE)
+	return
+
+/turf/flash_lighting_fx(_range = FLASH_LIGHT_RANGE, _power = FLASH_LIGHT_POWER, _color = LIGHT_COLOR_WHITE, _duration = FLASH_LIGHT_DURATION, _reset_lighting = TRUE)
+	if(!_duration)
+		stack_trace("Lighting FX obj created on a turf without a duration")
+	new /obj/effect/dummy/lighting_obj (src, _color, _range, _power, _duration)
+
+/obj/flash_lighting_fx(_range = FLASH_LIGHT_RANGE, _power = FLASH_LIGHT_POWER, _color = LIGHT_COLOR_WHITE, _duration = FLASH_LIGHT_DURATION, _reset_lighting = TRUE)
+	var/temp_color
+	var/temp_power
+	var/temp_range
+	if(!_reset_lighting) //incase the obj already has a lighting color that you don't want cleared out after, ie computer monitors.
+		temp_color = light_color
+		temp_power = light_power
+		temp_range = light_range
+	set_light(_range, _power, _color)
+	addtimer(CALLBACK(src, /atom/proc/set_light, _reset_lighting ? initial(light_range) : temp_range, _reset_lighting ? initial(light_power) : temp_power, _reset_lighting ? initial(light_color) : temp_color), _duration, TIMER_OVERRIDE|TIMER_UNIQUE)
+
+/mob/living/flash_lighting_fx(_range = FLASH_LIGHT_RANGE, _power = FLASH_LIGHT_POWER, _color = LIGHT_COLOR_WHITE, _duration = FLASH_LIGHT_DURATION, _reset_lighting = TRUE)
+	mob_light(_color, _range, _power, _duration)
+
+/mob/living/proc/mob_light(_color, _range, _power, _duration)
+	var/obj/effect/dummy/lighting_obj/moblight/mob_light_obj = new (src, _color, _range, _power, _duration)
+	return mob_light_obj
+

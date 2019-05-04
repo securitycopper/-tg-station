@@ -1,26 +1,25 @@
 
 /obj/item/bodypart/proc/can_dismember(obj/item/I)
 	if(dismemberable)
-		. = (get_damage() >= (max_damage - I.armour_penetration/2))
+		return TRUE
 
 //Dismember a limb
 /obj/item/bodypart/proc/dismember(dam_type = BRUTE)
 	if(!owner)
-		return 0
+		return FALSE
 	var/mob/living/carbon/C = owner
 	if(!dismemberable)
-		return 0
+		return FALSE
 	if(C.status_flags & GODMODE)
-		return 0
-	if(ishuman(C))
-		var/mob/living/carbon/human/H = C
-		if(NODISMEMBER in H.dna.species.species_traits) // species don't allow dismemberment
-			return 0
+		return FALSE
+	if(C.has_trait(TRAIT_NODISMEMBER))
+		return FALSE
 
-	var/obj/item/bodypart/affecting = C.get_bodypart("chest")
-	affecting.receive_damage(Clamp(brute_dam/2, 15, 50), Clamp(burn_dam/2, 0, 50)) //Damage the chest based on limb's existing damage
+	var/obj/item/bodypart/affecting = C.get_bodypart(BODY_ZONE_CHEST)
+	affecting.receive_damage(CLAMP(brute_dam/2 * affecting.body_damage_coeff, 15, 50), CLAMP(burn_dam/2 * affecting.body_damage_coeff, 0, 50)) //Damage the chest based on limb's existing damage
 	C.visible_message("<span class='danger'><B>[C]'s [src.name] has been violently dismembered!</B></span>")
 	C.emote("scream")
+	SEND_SIGNAL(C, COMSIG_ADD_MOOD_EVENT, "dismembered", /datum/mood_event/dismembered)
 	drop_limb()
 
 	if(dam_type == BURN)
@@ -30,7 +29,7 @@
 	var/turf/location = C.loc
 	if(istype(location))
 		C.add_splatter_floor(location)
-	var/direction = pick(cardinal)
+	var/direction = pick(GLOB.cardinals)
 	var/t_range = rand(2,max(throw_range/2, 2))
 	var/turf/target_turf = get_turf(src)
 	for(var/i in 1 to t_range-1)
@@ -46,15 +45,13 @@
 
 /obj/item/bodypart/chest/dismember()
 	if(!owner)
-		return 0
+		return FALSE
 	var/mob/living/carbon/C = owner
 	if(!dismemberable)
-		return 0
-	if(ishuman(C))
-		var/mob/living/carbon/human/H = C
-		if(NODISMEMBER in H.dna.species.species_traits) // species don't allow dismemberment
-			return 0
-
+		return FALSE
+	if(C.has_trait(TRAIT_NODISMEMBER))
+		return FALSE
+	. = list()
 	var/organ_spilled = 0
 	var/turf/T = get_turf(C)
 	C.add_splatter_floor(T)
@@ -62,19 +59,20 @@
 	for(var/X in C.internal_organs)
 		var/obj/item/organ/O = X
 		var/org_zone = check_zone(O.zone)
-		if(org_zone != "chest")
+		if(org_zone != BODY_ZONE_CHEST)
 			continue
 		O.Remove(C)
 		O.forceMove(T)
 		organ_spilled = 1
+		. += X
 	if(cavity_item)
 		cavity_item.forceMove(T)
+		. += cavity_item
 		cavity_item = null
 		organ_spilled = 1
 
 	if(organ_spilled)
 		C.visible_message("<span class='danger'><B>[C]'s internal organs spill out onto the floor!</B></span>")
-	return 1
 
 
 
@@ -82,10 +80,11 @@
 /obj/item/bodypart/proc/drop_limb(special)
 	if(!owner)
 		return
-	var/turf/T = get_turf(owner)
+	var/atom/Tsec = owner.drop_location()
 	var/mob/living/carbon/C = owner
 	update_limb(1)
 	C.bodyparts -= src
+
 	if(held_index)
 		C.dropItemToGround(owner.get_item_for_held_index(held_index), 1)
 		C.hand_bodyparts[held_index] = null
@@ -101,16 +100,17 @@
 
 	for(var/obj/item/I in embedded_objects)
 		embedded_objects -= I
-		I.loc = src
+		I.forceMove(src)
 	if(!C.has_embedded_objects())
 		C.clear_alert("embeddedobject")
+		SEND_SIGNAL(C, COMSIG_CLEAR_MOOD_EVENT, "embedded")
 
 	if(!special)
 		if(C.dna)
 			for(var/X in C.dna.mutations) //some mutations require having specific limbs to be kept.
 				var/datum/mutation/human/MT = X
 				if(MT.limb_req && MT.limb_req == body_zone)
-					MT.force_lose(C)
+					C.dna.force_lose(MT)
 
 		for(var/X in C.internal_organs) //internal organs inside the dismembered limb are dropped.
 			var/obj/item/organ/O = X
@@ -120,46 +120,61 @@
 			O.transfer_to_limb(src, C)
 
 	update_icon_dropped()
-	forceMove(T)
 	C.update_health_hud() //update the healthdoll
 	C.update_body()
 	C.update_hair()
-	C.update_canmove()
+	C.update_mobility()
+
+	if(!Tsec)	// Tsec = null happens when a "dummy human" used for rendering icons on prefs screen gets its limbs replaced.
+		qdel(src)
+		return
+
+	if(is_pseudopart)
+		drop_organs(C)	//Psuedoparts shouldn't have organs, but just in case
+		qdel(src)
+		return
+
+	forceMove(Tsec)
+
 
 
 //when a limb is dropped, the internal organs are removed from the mob and put into the limb
 /obj/item/organ/proc/transfer_to_limb(obj/item/bodypart/LB, mob/living/carbon/C)
 	Remove(C)
-	loc = LB
+	forceMove(LB)
 
 /obj/item/organ/brain/transfer_to_limb(obj/item/bodypart/head/LB, mob/living/carbon/human/C)
-	if(C.mind && C.mind.changeling)
-		LB.brain = new //changeling doesn't lose its real brain organ, we drop a decoy.
-		LB.brain.loc = LB
-		LB.brain.decoy_override = TRUE
-	else			//if not a changeling, we put the brain organ inside the dropped head
-		Remove(C)	//and put the player in control of the brainmob
-		loc = LB
-		LB.brain = src
+	Remove(C)	//Changeling brain concerns are now handled in Remove
+	forceMove(LB)
+	LB.brain = src
+	if(brainmob)
 		LB.brainmob = brainmob
 		brainmob = null
-		LB.brainmob.loc = LB
-		LB.brainmob.container = LB
+		LB.brainmob.forceMove(LB)
 		LB.brainmob.stat = DEAD
 
 /obj/item/organ/eyes/transfer_to_limb(obj/item/bodypart/head/LB, mob/living/carbon/human/C)
 	LB.eyes = src
 	..()
 
+/obj/item/organ/ears/transfer_to_limb(obj/item/bodypart/head/LB, mob/living/carbon/human/C)
+	LB.ears = src
+	..()
+
+/obj/item/organ/tongue/transfer_to_limb(obj/item/bodypart/head/LB, mob/living/carbon/human/C)
+	LB.tongue = src
+	..()
+
 /obj/item/bodypart/chest/drop_limb(special)
-	return
+	if(special)
+		..()
 
 /obj/item/bodypart/r_arm/drop_limb(special)
 	var/mob/living/carbon/C = owner
 	..()
 	if(C && !special)
 		if(C.handcuffed)
-			C.handcuffed.loc = C.loc
+			C.handcuffed.forceMove(drop_location())
 			C.handcuffed.dropped(C)
 			C.handcuffed = null
 			C.update_handcuffed()
@@ -177,7 +192,7 @@
 	..()
 	if(C && !special)
 		if(C.handcuffed)
-			C.handcuffed.loc = C.loc
+			C.handcuffed.forceMove(drop_location())
 			C.handcuffed.dropped(C)
 			C.handcuffed = null
 			C.update_handcuffed()
@@ -193,7 +208,7 @@
 /obj/item/bodypart/r_leg/drop_limb(special)
 	if(owner && !special)
 		if(owner.legcuffed)
-			owner.legcuffed.loc = owner.loc
+			owner.legcuffed.forceMove(owner.drop_location()) //At this point bodypart is still in nullspace
 			owner.legcuffed.dropped(owner)
 			owner.legcuffed = null
 			owner.update_inv_legcuffed()
@@ -204,7 +219,7 @@
 /obj/item/bodypart/l_leg/drop_limb(special) //copypasta
 	if(owner && !special)
 		if(owner.legcuffed)
-			owner.legcuffed.loc = owner.loc
+			owner.legcuffed.forceMove(owner.drop_location())
 			owner.legcuffed.dropped(owner)
 			owner.legcuffed = null
 			owner.update_inv_legcuffed()
@@ -218,19 +233,29 @@
 		for(var/X in list(owner.glasses, owner.ears, owner.wear_mask, owner.head))
 			var/obj/item/I = X
 			owner.dropItemToGround(I, TRUE)
+
+	owner.wash_cream() //clean creampie overlay
+
+	//Handle dental implants
+	for(var/datum/action/item_action/hands_free/activate_pill/AP in owner.actions)
+		AP.Remove(owner)
+		var/obj/pill = AP.target
+		if(pill)
+			pill.forceMove(src)
+
+	//Make sure de-zombification happens before organ removal instead of during it
+	var/obj/item/organ/zombie_infection/ooze = owner.getorganslot(ORGAN_SLOT_ZOMBIE)
+	if(istype(ooze))
+		ooze.transfer_to_limb(src, owner)
+
 	name = "[owner.real_name]'s head"
 	..()
-
-
-
-
-
 
 //Attach a limb to a human and drop any existing limb of that type.
 /obj/item/bodypart/proc/replace_limb(mob/living/carbon/C, special)
 	if(!istype(C))
 		return
-	var/obj/item/bodypart/O = locate(src.type) in C.bodyparts
+	var/obj/item/bodypart/O = C.get_bodypart(body_zone)
 	if(O)
 		O.drop_limb(1)
 	attach_limb(C, special)
@@ -238,7 +263,7 @@
 /obj/item/bodypart/head/replace_limb(mob/living/carbon/C, special)
 	if(!istype(C))
 		return
-	var/obj/item/bodypart/head/O = locate(src.type) in C.bodyparts
+	var/obj/item/bodypart/head/O = C.get_bodypart(body_zone)
 	if(O)
 		if(!special)
 			return
@@ -247,13 +272,15 @@
 	attach_limb(C, special)
 
 /obj/item/bodypart/proc/attach_limb(mob/living/carbon/C, special)
-	loc = null
+	moveToNullspace()
 	owner = C
 	C.bodyparts += src
 	if(held_index)
 		if(held_index > C.hand_bodyparts.len)
 			C.hand_bodyparts.len = held_index
 		C.hand_bodyparts[held_index] = src
+		if(C.dna.species.mutanthands && !is_pseudopart)
+			C.put_in_hand(new C.dna.species.mutanthands(), held_index)
 		if(C.hud_used)
 			var/obj/screen/inventory/hand/hand = C.hud_used.hand_slots["[held_index]"]
 			if(hand)
@@ -269,24 +296,35 @@
 				qdel(S)
 				break
 
+	for(var/obj/item/organ/O in contents)
+		O.Insert(C)
+
 	update_bodypart_damage_state()
 
 	C.updatehealth()
 	C.update_body()
 	C.update_hair()
 	C.update_damage_overlays()
-	C.update_canmove()
+	C.update_mobility()
 
 
 /obj/item/bodypart/head/attach_limb(mob/living/carbon/C, special)
 	//Transfer some head appearance vars over
 	if(brain)
-		brainmob.container = null //Reset brainmob head var.
-		brainmob.loc = brain //Throw mob into brain.
-		brain.brainmob = brainmob //Set the brain to use the brainmob
-		brainmob = null //Set head brainmob var to null
+		if(brainmob)
+			brainmob.container = null //Reset brainmob head var.
+			brainmob.forceMove(brain) //Throw mob into brain.
+			brain.brainmob = brainmob //Set the brain to use the brainmob
+			brainmob = null //Set head brainmob var to null
 		brain.Insert(C) //Now insert the brain proper
 		brain = null //No more brain in the head
+
+	if(tongue)
+		tongue = null
+	if(ears)
+		ears = null
+	if(eyes)
+		eyes = null
 
 	if(ishuman(C))
 		var/mob/living/carbon/human/H = C
@@ -300,6 +338,14 @@
 		C.real_name = real_name
 	real_name = ""
 	name = initial(name)
+
+	//Handle dental implants
+	for(var/obj/item/reagent_containers/pill/P in src)
+		for(var/datum/action/item_action/hands_free/activate_pill/AP in P.actions)
+			P.forceMove(C)
+			AP.Grant(C)
+			break
+
 	..()
 
 
@@ -308,7 +354,7 @@
 	return 0
 
 /mob/living/carbon/regenerate_limbs(noheal, list/excluded_limbs)
-	var/list/limb_list = list("head", "chest", "r_arm", "l_arm", "r_leg", "l_leg")
+	var/list/limb_list = list(BODY_ZONE_HEAD, BODY_ZONE_CHEST, BODY_ZONE_R_ARM, BODY_ZONE_L_ARM, BODY_ZONE_R_LEG, BODY_ZONE_L_LEG)
 	if(excluded_limbs)
 		limb_list -= excluded_limbs
 	for(var/Z in limb_list)

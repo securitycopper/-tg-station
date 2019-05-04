@@ -6,7 +6,7 @@
 	icon_state = "leap_off"
 
 /obj/screen/alien/leap/Click()
-	if(istype(usr, /mob/living/carbon/alien/humanoid/hunter))
+	if(isalienhunter(usr))
 		var/mob/living/carbon/alien/humanoid/hunter/AH = usr
 		AH.toggle_leap()
 
@@ -24,11 +24,10 @@
 	desc = "Allows you to sense the general direction of your Queen."
 	screen_loc = ui_alien_queen_finder
 
-
 /datum/hud/alien
-	ui_style_icon = 'icons/mob/screen_alien.dmi'
+	ui_style = 'icons/mob/screen_alien.dmi'
 
-/datum/hud/alien/New(mob/living/carbon/alien/humanoid/owner, ui_style = 'icons/mob/screen_alien.dmi')
+/datum/hud/alien/New(mob/living/carbon/alien/humanoid/owner)
 	..()
 
 	var/obj/screen/using
@@ -36,7 +35,7 @@
 //equippable shit
 
 //hands
-	build_hand_slots(ui_style)
+	build_hand_slots()
 
 //begin buttons
 
@@ -57,15 +56,14 @@
 	static_inventory += using
 	action_intent = using
 
-	if(istype(mymob, /mob/living/carbon/alien/humanoid/hunter))
+	if(isalienhunter(mymob))
 		var/mob/living/carbon/alien/humanoid/hunter/H = mymob
 		H.leap_icon = new /obj/screen/alien/leap()
 		H.leap_icon.screen_loc = ui_alien_storage_r
 		static_inventory += H.leap_icon
 
-	using = new/obj/screen/wheel/talk
-	using.screen_loc = ui_alien_talk_wheel
-	wheels += using
+	using = new/obj/screen/language_menu
+	using.screen_loc = ui_alien_language_menu
 	static_inventory += using
 
 	using = new /obj/screen/drop()
@@ -75,7 +73,7 @@
 
 	using = new /obj/screen/resist()
 	using.icon = ui_style
-	using.screen_loc = ui_pull_resist
+	using.screen_loc = ui_above_movement
 	hotkeybuttons += using
 
 	throw_icon = new /obj/screen/throw_catch()
@@ -86,7 +84,7 @@
 	pull_icon = new /obj/screen/pull()
 	pull_icon.icon = ui_style
 	pull_icon.update_icon(mymob)
-	pull_icon.screen_loc = ui_pull_resist
+	pull_icon.screen_loc = ui_above_movement
 	static_inventory += pull_icon
 
 //begin indicators
@@ -97,7 +95,7 @@
 	alien_plasma_display = new /obj/screen/alien/plasma_display()
 	infodisplay += alien_plasma_display
 
-	if(!istype(mymob, /mob/living/carbon/alien/humanoid/royal/queen))
+	if(!isalienqueen(mymob))
 		alien_queen_finder = new /obj/screen/alien/alien_queen_finder
 		infodisplay += alien_queen_finder
 
@@ -123,7 +121,3 @@
 		for(var/obj/item/I in H.held_items)
 			I.screen_loc = null
 			H.client.screen -= I
-
-/mob/living/carbon/alien/humanoid/create_mob_hud()
-	if(client && !hud_used)
-		hud_used = new /datum/hud/alien(src)

@@ -14,7 +14,7 @@
 #define SUPPORT_LINES 1
 #define COVER 2
 #define CUT_COVER 3
-#define BOLTS 4
+#define ANCHOR_BOLTS 4
 #define SUPPORT_RODS 5
 #define SHEATH 6
 
@@ -23,20 +23,15 @@
 #define WINDOW_IN_FRAME 1
 #define WINDOW_SCREWED_TO_FRAME 2
 
-//plastic flaps construction states
-#define PLASTIC_FLAPS_NORMAL 0
-#define PLASTIC_FLAPS_DETACHED 1
+//airlock assembly construction states
+#define AIRLOCK_ASSEMBLY_NEEDS_WIRES 0
+#define AIRLOCK_ASSEMBLY_NEEDS_ELECTRONICS 1
+#define AIRLOCK_ASSEMBLY_NEEDS_SCREWDRIVER 2
 
 //default_unfasten_wrench() return defines
 #define CANT_UNFASTEN 0
 #define FAILED_UNFASTEN 1
 #define SUCCESSFUL_UNFASTEN 2
-
-//disposal unit mode defines, which do double time as the construction defines
-#define PRESSURE_OFF 0
-#define PRESSURE_ON 1
-#define PRESSURE_MAXED 2
-#define SCREWS_OUT -1
 
 //ai core defines
 #define EMPTY_CORE 0
@@ -46,23 +41,19 @@
 #define GLASS_CORE 4
 #define AI_READY_CORE 5
 
-//field generator construction defines
-#define FG_UNSECURED 0
-#define FG_SECURED 1
-#define FG_WELDED 2
-
-//emitter construction defines
-#define EM_UNSECURED 0
-#define EM_SECURED 1
-#define EM_WELDED 2
-
 //Construction defines for the pinion airlock
 #define GEAR_SECURE 1
 #define GEAR_LOOSE 2
 
+//floodlights because apparently we use defines now
+#define FLOODLIGHT_NEEDS_WIRES 0
+#define FLOODLIGHT_NEEDS_LIGHTS 1
+#define FLOODLIGHT_NEEDS_SECURING 2
+#define FLOODLIGHT_NEEDS_WRENCHING 3
+
 //other construction-related things
 
-//windows affected by nar-sie turn this color.
+//windows affected by Nar'Sie turn this color.
 #define NARSIE_WINDOW_COLOUR "#7D1919"
 
 //let's just pretend fulltile windows being children of border windows is fine
@@ -80,6 +71,7 @@
 #define MAT_BANANIUM	"$bananium"
 #define MAT_TITANIUM	"$titanium"
 #define MAT_BIOMASS		"$biomass"
+#define MAT_PLASTIC	"$plastic"
 //The amount of materials you get from a sheet of mineral like iron/diamond/glass etc
 #define MINERAL_MATERIAL_AMOUNT 2000
 //The maximum size of a stack object.
@@ -89,11 +81,14 @@
 
 //tablecrafting defines
 #define CAT_NONE	""
-#define CAT_WEAPON	"Weaponry"
+#define CAT_WEAPONRY	"Weaponry"
+#define CAT_WEAPON	"Weapons"
 #define CAT_AMMO	"Ammunition"
 #define CAT_ROBOT	"Robots"
 #define CAT_MISC	"Misc"
 #define CAT_PRIMAL  "Tribal"
+#define CAT_CLOTHING	"Clothing"
+#define CAT_FOOD	"Foods"
 #define CAT_BREAD	"Breads"
 #define CAT_BURGER	"Burgers"
 #define CAT_CAKE	"Cakes"
@@ -107,3 +102,10 @@
 #define CAT_SANDWICH	"Sandwiches"
 #define CAT_SOUP	"Soups"
 #define CAT_SPAGHETTI	"Spaghettis"
+
+#define RCD_FLOORWALL 1
+#define RCD_AIRLOCK 2
+#define RCD_DECONSTRUCT 3
+#define RCD_WINDOWGRILLE 4
+#define RCD_MACHINE 8
+#define RCD_COMPUTER 16

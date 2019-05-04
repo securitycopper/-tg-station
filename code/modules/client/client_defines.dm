@@ -11,7 +11,7 @@
 	var/datum/click_intercept = null // Needs to implement InterceptClickOn(user,params,atom) proc
 	var/AI_Interact		= 0
 
-	var/jobbancache = null //Used to cache this client's jobbans to save on DB queries
+	var/ban_cache = null //Used to cache this client's bans to save on DB queries
 	var/last_message	= "" //Contains the last message sent by this client - used to protect against copy-paste spamming.
 	var/last_message_count = 0 //contins a number of how many times a message identical to last_message was sent.
 	var/ircreplyamount = 0
@@ -20,9 +20,8 @@
 		//OTHER//
 		/////////
 	var/datum/preferences/prefs = null
-	var/move_delay		= 1
-	var/moving			= null
-
+	var/last_turn = 0
+	var/move_delay = 0
 	var/area			= null
 
 		///////////////
@@ -39,16 +38,20 @@
 		////////////////////////////////////
 		//things that require the database//
 		////////////////////////////////////
-	var/player_age = "Requires database"	//So admins know why it isn't working - Used to determine how old the account is - in days.
+	var/player_age = -1	//Used to determine how old the account is - in days.
+	var/player_join_date = null //Date that this account was first seen in the server
 	var/related_accounts_ip = "Requires database"	//So admins know why it isn't working - Used to determine what other accounts previously logged in from this ip
 	var/related_accounts_cid = "Requires database"	//So admins know why it isn't working - Used to determine what other accounts previously logged in from this computer id
+	var/account_join_date = null	//Date of byond account creation in ISO 8601 format
+	var/account_age = -1	//Age of byond account in days
 
 	preload_rsc = PRELOAD_RSC
 
-	var/global/obj/screen/click_catcher/void
+	var/obj/screen/click_catcher/void
 
-	// Used by html_interface module.
-	var/hi_last_pos
+	//These two vars are used to make a special mouse cursor, with a unique icon for clicking
+	var/mouse_up_icon = null
+	var/mouse_down_icon = null
 
 	var/ip_intel = "Disabled"
 
@@ -63,3 +66,12 @@
 
 	var/inprefs = FALSE
 	var/list/topiclimiter
+	var/list/clicklimiter
+
+	var/datum/chatOutput/chatOutput
+
+	var/list/credits //lazy list of all credit object bound to this client
+
+	var/datum/player_details/player_details //these persist between logins/logouts during the same round.
+
+	var/list/char_render_holders			//Should only be a key-value list of north/south/east/west = obj/screen.

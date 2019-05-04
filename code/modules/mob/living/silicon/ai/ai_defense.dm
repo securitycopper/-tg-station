@@ -6,7 +6,7 @@
 
 
 /mob/living/silicon/ai/attack_alien(mob/living/carbon/alien/humanoid/M)
-	if(!ticker || !ticker.mode)
+	if(!SSticker.HasRoundStarted())
 		to_chat(M, "You cannot attack people before the game has started.")
 		return
 	..()
@@ -22,13 +22,16 @@
 	return 0
 
 /mob/living/silicon/ai/emp_act(severity)
+	. = ..()
+	if(. & EMP_PROTECT_SELF)
+		return
+	disconnect_shell()
 	if (prob(30))
 		switch(pick(1,2))
 			if(1)
 				view_core()
 			if(2)
 				SSshuttle.requestEvac(src,"ALERT: Energy surge detected in AI core! Station integrity may be compromised! Initiati--%m091#ar-BZZT")
-	..()
 
 /mob/living/silicon/ai/ex_act(severity, target)
 	switch(severity)
@@ -45,9 +48,8 @@
 
 
 /mob/living/silicon/ai/bullet_act(obj/item/projectile/Proj)
-	..(Proj)
+	. = ..(Proj)
 	updatehealth()
-	return 2
 
 /mob/living/silicon/ai/flash_act(intensity = 1, override_blindness_check = 0, affect_silicon = 0)
 	return // no eyes, no flashing

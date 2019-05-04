@@ -1,21 +1,7 @@
-//The code execution of the emote datum is located at code/datums/emotes.dm
-/mob/living/emote(act, m_type = null, message = null)
-	act = lowertext(act)
-	var/param = message
-	var/custom_param = findchar(act, " ")
-	if(custom_param)
-		param = copytext(act, custom_param + 1, length(act) + 1)
-		act = copytext(act, 1, custom_param)
-
-	var/datum/emote/E = emote_list[act]
-	if(!E)
-		to_chat(src, "<span class='notice'>Unusable emote '[act]'. Say *help for a list.</span>")
-		return
-	E.run_emote(src, param, m_type)
 
 /* EMOTE DATUMS */
 /datum/emote/living
-	mob_type_allowed_typecache = list(/mob/living)
+	mob_type_allowed_typecache = /mob/living
 	mob_type_blacklist_typecache = list(/mob/living/simple_animal/slime, /mob/living/brain)
 
 /datum/emote/living/blush
@@ -28,6 +14,7 @@
 	key_third_person = "bows"
 	message = "bows."
 	message_param = "bows to %t."
+	restraint_check = TRUE
 
 /datum/emote/living/burp
 	key = "burp"
@@ -61,14 +48,20 @@
 
 /datum/emote/living/collapse/run_emote(mob/user, params)
 	. = ..()
-	if(.)
-		user.Paralyse(2)
+	if(. && isliving(user))
+		var/mob/living/L = user
+		L.Unconscious(40)
 
 /datum/emote/living/cough
 	key = "cough"
 	key_third_person = "coughs"
 	message = "coughs!"
 	emote_type = EMOTE_AUDIBLE
+
+/datum/emote/living/cough/can_run_emote(mob/user, status_check = TRUE)
+	. = ..()
+	if(user.has_trait(TRAIT_SOOTHED_THROAT))
+		return FALSE
 
 /datum/emote/living/dance
 	key = "dance"
@@ -94,8 +87,12 @@
 		message_simple = S.deathmessage
 	. = ..()
 	message_simple = initial(message_simple)
-	if(. && isalienadult(user))
-		playsound(user.loc, 'sound/voice/hiss6.ogg', 80, 1, 1)
+	if(. && user.deathsound)
+		if(isliving(user))
+			var/mob/living/L = user
+			if(!L.can_speak_vocal() || L.oxyloss >= 50)
+				return //stop the sound if oxyloss too high/cant speak
+		playsound(user, user.deathsound, 200, TRUE, TRUE)
 
 /datum/emote/living/drool
 	key = "drool"
@@ -109,13 +106,15 @@
 
 /datum/emote/living/faint/run_emote(mob/user, params)
 	. = ..()
-	if(.)
-		user.SetSleeping(10)
+	if(. && isliving(user))
+		var/mob/living/L = user
+		L.SetSleeping(200)
 
 /datum/emote/living/flap
 	key = "flap"
 	key_third_person = "flaps"
 	message = "flaps their wings."
+	restraint_check = TRUE
 	var/wing_time = 20
 
 /datum/emote/living/flap/run_emote(mob/user, params)
@@ -135,17 +134,8 @@
 	key = "aflap"
 	key_third_person = "aflaps"
 	message = "flaps their wings ANGRILY!"
-	wing_time = 10
-
-/datum/emote/living/flip
-	key = "flip"
-	key_third_person = "flips"
 	restraint_check = TRUE
-
-/datum/emote/living/flip/run_emote(mob/user, params)
-	. = ..()
-	if(!.)
-		user.SpinAnimation(7,1)
+	wing_time = 10
 
 /datum/emote/living/frown
 	key = "frown"
@@ -212,7 +202,24 @@
 	key = "laugh"
 	key_third_person = "laughs"
 	message = "laughs."
+	message_mime = "laughs silently!"
 	emote_type = EMOTE_AUDIBLE
+	vary = TRUE
+
+/datum/emote/living/laugh/can_run_emote(mob/living/user, status_check = TRUE)
+	. = ..()
+	if(. && iscarbon(user))
+		var/mob/living/carbon/C = user
+		return !C.silent
+
+/datum/emote/living/laugh/get_sound(mob/living/user)
+	if(ishuman(user))
+		var/mob/living/carbon/human/H = user
+		if(H.dna.species.id == "human" && (!H.mind || !H.mind.miming))
+			if(user.gender == FEMALE)
+				return 'sound/voice/human/womanlaugh.ogg'
+			else
+				return pick('sound/voice/human/manlaugh1.ogg', 'sound/voice/human/manlaugh2.ogg')
 
 /datum/emote/living/look
 	key = "look"
@@ -232,6 +239,19 @@
 	message = "points."
 	message_param = "points at %t."
 	restraint_check = TRUE
+
+/datum/emote/living/point/run_emote(mob/user, params)
+	message_param = initial(message_param) // reset
+	if(ishuman(user))
+		var/mob/living/carbon/human/H = user
+		if(H.get_num_arms() == 0)
+			if(H.get_num_legs() != 0)
+				message_param = "tries to point at %t with a leg, <span class='userdanger'>falling down</span> in the process!"
+				H.Paralyze(20)
+			else
+				message_param = "<span class='userdanger'>bumps [user.p_their()] head on the ground</span> trying to motion towards %t."
+				H.adjustBrainLoss(5)
+	..()
 
 /datum/emote/living/pout
 	key = "pout"
@@ -303,6 +323,7 @@
 	message = "snores."
 	message_mime = "sleeps soundly."
 	emote_type = EMOTE_AUDIBLE
+	stat_allowed = UNCONSCIOUS
 
 /datum/emote/living/stare
 	key = "stare"
@@ -323,13 +344,14 @@
 /datum/emote/living/surrender
 	key = "surrender"
 	key_third_person = "surrenders"
-	message = "puts their hands on their head and falls to the ground, they surrender%s!"
+	message = "puts their hands on their head and falls to the ground, they surrender!"
 	emote_type = EMOTE_AUDIBLE
 
 /datum/emote/living/surrender/run_emote(mob/user, params)
 	. = ..()
-	if(.)
-		user.Weaken(20)
+	if(. && isliving(user))
+		var/mob/living/L = user
+		L.Paralyze(200)
 
 /datum/emote/living/sway
 	key = "sway"
@@ -391,8 +413,10 @@
 		. = FALSE
 
 /datum/emote/living/custom/run_emote(mob/user, params, type_override = null)
-	if(jobban_isbanned(user, "emote"))
+	if(is_banned_from(user.ckey, "Emote"))
 		to_chat(user, "You cannot send custom emotes (banned).")
+		return FALSE
+	else if(QDELETED(user))
 		return FALSE
 	else if(user.client && user.client.prefs.muted & MUTE_IC)
 		to_chat(user, "You cannot send IC messages (muted).")
@@ -418,6 +442,9 @@
 	message = null
 	emote_type = EMOTE_VISIBLE
 
+/datum/emote/living/custom/replace_pronoun(mob/user, message)
+	return message
+
 /datum/emote/living/help
 	key = "help"
 
@@ -425,11 +452,13 @@
 	var/list/keys = list()
 	var/list/message = list("Available emotes, you can use them with say \"*emote\": ")
 
+	var/datum/emote/E
+	var/list/emote_list = E.emote_list
 	for(var/e in emote_list)
 		if(e in keys)
 			continue
-		var/datum/emote/E = emote_list[e]
-		if(E.can_run_emote(user, TRUE))
+		E = emote_list[e]
+		if(E.can_run_emote(user, status_check = FALSE))
 			keys += E.key
 
 	keys = sortList(keys)
@@ -446,26 +475,39 @@
 
 	to_chat(user, message)
 
-/datum/emote/sound/beep
+/datum/emote/beep
 	key = "beep"
 	key_third_person = "beeps"
 	message = "beeps."
 	message_param = "beeps at %t."
 	sound = 'sound/machines/twobeep.ogg'
+	mob_type_allowed_typecache = list(/mob/living/brain, /mob/living/silicon)
 
-/datum/emote/living/spin
-	key = "spin"
-	key_third_person = "spins"
-	message = "spins around dizzily!"
+/datum/emote/living/circle
+	key = "circle"
+	key_third_person = "circles"
+	restraint_check = TRUE
 
-/datum/emote/living/spin/run_emote(mob/user)
-	user.spin(20, 1)
-	if(istype(user, /mob/living/silicon/robot))
-		var/mob/living/silicon/robot/R = user
-		if(R.buckled_mobs)
-			for(var/mob/M in R.buckled_mobs)
-				if(R.riding_datum)
-					R.riding_datum.force_dismount(M)
-				else
-					R.unbuckle_all_mobs()
-	..()
+/datum/emote/living/circle/run_emote(mob/user, params)
+	. = ..()
+	var/obj/item/circlegame/N = new(user)
+	if(user.put_in_hands(N))
+		to_chat(user, "<span class='notice'>You make a circle with your hand.</span>")
+	else
+		qdel(N)
+		to_chat(user, "<span class='warning'>You don't have any free hands to make a circle with.</span>")
+
+/datum/emote/living/slap
+	key = "slap"
+	key_third_person = "slaps"
+	restraint_check = TRUE
+
+/datum/emote/living/slap/run_emote(mob/user, params)
+	. = ..()
+	if(!.)
+		return
+	var/obj/item/slapper/N = new(user)
+	if(user.put_in_hands(N))
+		to_chat(user, "<span class='notice'>You ready your slapping hand.</span>")
+	else
+		to_chat(user, "<span class='warning'>You're incapable of slapping in your current state.</span>")

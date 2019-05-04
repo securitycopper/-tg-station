@@ -9,8 +9,6 @@
 
 /mob/living/simple_animal/slime/Life()
 	set invisibility = 0
-	set background = BACKGROUND_ENABLED
-
 	if (notransform)
 		return
 	if(..())
@@ -43,7 +41,7 @@
 	AIproc = 1
 
 	while(AIproc && stat != DEAD && (attacked || hungry || rabid || buckled))
-		if(buckled) // can't eat AND have this little process at the same time
+		if(!(mobility_flags & MOBILITY_MOVE)) //also covers buckling. Not sure why buckled is in the while condition if we're going to immediately break, honestly
 			break
 
 		if(!Target || client)
@@ -72,7 +70,7 @@
 						if(Target.Adjacent(src))
 							Target.attack_slime(src)
 					return
-				if(!Target.lying && prob(80))
+				if((Target.mobility_flags & MOBILITY_STAND) && prob(80))
 
 					if(Target.client && Target.health >= 20)
 						if(!Atkcool)
@@ -112,10 +110,9 @@
 	if(!environment)
 		return
 
-	//var/environment_heat_capacity = environment.heat_capacity()
 	var/loc_temp = get_temperature(environment)
 
-	bodytemperature += adjust_body_temperature(bodytemperature, loc_temp, 1)
+	adjust_bodytemperature(adjust_body_temperature(bodytemperature, loc_temp, 1))
 
 	//Account for massive pressure differences
 
@@ -134,8 +131,8 @@
 
 	if(stat != DEAD)
 		var/bz_percentage =0
-		if("bz" in environment.gases)
-			bz_percentage = environment.gases["bz"][MOLES] / environment.total_moles()
+		if(environment.gases[/datum/gas/bz])
+			bz_percentage = environment.gases[/datum/gas/bz][MOLES] / environment.total_moles()
 		var/stasis = (bz_percentage >= 0.05 && bodytemperature < (T0C + 100)) || force_stasis
 
 		if(stat == CONSCIOUS && stasis)
@@ -143,12 +140,12 @@
 			stat = UNCONSCIOUS
 			powerlevel = 0
 			rabid = 0
-			update_canmove()
+			update_mobility()
 			regenerate_icons()
 		else if(stat == UNCONSCIOUS && !stasis)
 			to_chat(src, "<span class='notice'>You wake up from the stasis.</span>")
 			stat = CONSCIOUS
-			update_canmove()
+			update_mobility()
 			regenerate_icons()
 
 	updatehealth()
@@ -184,7 +181,7 @@
 	var/mob/M = buckled
 
 	if(stat)
-		Feedstop(silent = 1)
+		Feedstop(silent = TRUE)
 
 	if(M.stat == DEAD) // our victim died
 		if(!client)
@@ -234,7 +231,7 @@
 		Feedstop(0, 0)
 		return
 
-	add_nutrition((rand(7,15) * config.damage_multiplier))
+	add_nutrition((rand(7, 15) * CONFIG_GET(number/damage_multiplier)))
 
 	//Heal yourself.
 	adjustBruteLoss(-3)
@@ -242,19 +239,19 @@
 /mob/living/simple_animal/slime/proc/handle_nutrition()
 
 	if(docile) //God as my witness, I will never go hungry again
-		nutrition = 700
+		set_nutrition(700) //fuck you for using the base nutrition var
 		return
 
 	if(prob(15))
-		nutrition -= 1 + is_adult
+		adjust_nutrition(-(1 + is_adult))
 
 	if(nutrition <= 0)
-		nutrition = 0
+		set_nutrition(0)
 		if(prob(75))
 			adjustBruteLoss(rand(0,5))
 
 	else if (nutrition >= get_grow_nutrition() && amount_grown < SLIME_EVOLUTION_THRESHOLD)
-		nutrition -= 20
+		adjust_nutrition(-20)
 		amount_grown++
 		update_action_buttons_icon()
 
@@ -265,7 +262,7 @@
 			Evolve()
 
 /mob/living/simple_animal/slime/proc/add_nutrition(nutrition_to_add = 0)
-	nutrition = min((nutrition + nutrition_to_add), get_max_nutrition())
+	set_nutrition(min((nutrition + nutrition_to_add), get_max_nutrition()))
 	if(nutrition >= get_grow_nutrition())
 		if(powerlevel<10)
 			if(prob(30-powerlevel*2))
@@ -279,11 +276,10 @@
 
 
 /mob/living/simple_animal/slime/proc/handle_targets()
+	update_mobility()
 	if(Tempstun)
 		if(!buckled) // not while they're eating!
-			canmove = 0
-	else
-		canmove = 1
+			mobility_flags &= ~MOBILITY_MOVE
 
 	if(attacked > 50)
 		attacked = 50
@@ -301,7 +297,7 @@
 			Discipline--
 
 	if(!client)
-		if(!canmove)
+		if(!(mobility_flags & MOBILITY_MOVE))
 			return
 
 		if(buckled)
@@ -309,11 +305,11 @@
 
 		if(Target)
 			--target_patience
-			if (target_patience <= 0 || SStun || Discipline || attacked || docile) // Tired of chasing or something draws out attention
+			if (target_patience <= 0 || SStun > world.time || Discipline || attacked || docile) // Tired of chasing or something draws out attention
 				target_patience = 0
 				Target = null
 
-		if(AIproc && SStun)
+		if(AIproc && SStun > world.time)
 			return
 
 		var/hungry = 0 // determines if the slime is hungry
@@ -338,6 +334,16 @@
 						continue
 
 					if(L in Friends) // No eating friends!
+						continue
+
+					var/ally = FALSE
+					for(var/F in faction)
+						if(F == "neutral") //slimes are neutral so other mobs not target them, but they can target neutral mobs
+							continue
+						if(F in L.faction)
+							ally = TRUE
+							break
+					if(ally)
 						continue
 
 					if(issilicon(L) && (rabid || attacked)) // They can't eat silicons, but they can glomp them in defence
@@ -376,22 +382,22 @@
 			if (Leader)
 				if(holding_still)
 					holding_still = max(holding_still - 1, 0)
-				else if(canmove && isturf(loc))
+				else if((mobility_flags & MOBILITY_MOVE) && isturf(loc))
 					step_to(src, Leader)
 
 			else if(hungry)
 				if (holding_still)
 					holding_still = max(holding_still - hungry, 0)
-				else if(canmove && isturf(loc) && prob(50))
-					step(src, pick(cardinal))
+				else if((mobility_flags & MOBILITY_MOVE) && isturf(loc) && prob(50))
+					step(src, pick(GLOB.cardinals))
 
 			else
 				if(holding_still)
 					holding_still = max(holding_still - 1, 0)
 				else if (docile && pulledby)
 					holding_still = 10
-				else if(canmove && isturf(loc) && prob(33))
-					step(src, pick(cardinal))
+				else if((mobility_flags & MOBILITY_MOVE) && isturf(loc) && prob(33))
+					step(src, pick(GLOB.cardinals))
 		else if(!AIproc)
 			INVOKE_ASYNC(src, .proc/AIprocess)
 
@@ -408,7 +414,7 @@
 	else if (docile)
 		newmood = ":3"
 	else if (Target)
-		newmood = "mischevous"
+		newmood = "mischievous"
 
 	if (!newmood)
 		if (Discipline && prob(25))

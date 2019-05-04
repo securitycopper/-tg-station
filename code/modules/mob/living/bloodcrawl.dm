@@ -1,22 +1,23 @@
-/obj/effect/dummy/slaughter //Can't use the wizard one, blocked by jaunt/slow
+/obj/effect/dummy/phased_mob/slaughter //Can't use the wizard one, blocked by jaunt/slow
 	name = "water"
 	icon = 'icons/effects/effects.dmi'
 	icon_state = "nothing"
 	var/canmove = 1
-	density = 0
-	anchored = 1
+	density = FALSE
+	anchored = TRUE
 	invisibility = 60
 	resistance_flags = LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
 
-/obj/effect/dummy/slaughter/relaymove(mob/user, direction)
+/obj/effect/dummy/phased_mob/slaughter/relaymove(mob/user, direction)
 	forceMove(get_step(src,direction))
 
-/obj/effect/dummy/slaughter/ex_act()
-	return
-/obj/effect/dummy/slaughter/bullet_act()
+/obj/effect/dummy/phased_mob/slaughter/ex_act()
 	return
 
-/obj/effect/dummy/slaughter/singularity_act()
+/obj/effect/dummy/phased_mob/slaughter/bullet_act()
+	return BULLET_ACT_FORCE_PIERCE
+
+/obj/effect/dummy/phased_mob/slaughter/singularity_act()
 	return
 
 
@@ -30,8 +31,8 @@
 			// literally only an option for carbons though
 			to_chat(C, "<span class='warning'>You may not hold items while blood crawling!</span>")
 			return 0
-		var/obj/item/weapon/bloodcrawl/B1 = new(C)
-		var/obj/item/weapon/bloodcrawl/B2 = new(C)
+		var/obj/item/bloodcrawl/B1 = new(C)
+		var/obj/item/bloodcrawl/B2 = new(C)
 		B1.icon_state = "bloodhand_left"
 		B2.icon_state = "bloodhand_right"
 		C.put_in_hands(B1)
@@ -47,10 +48,10 @@
 	var/turf/mobloc = get_turf(src.loc)
 
 	src.visible_message("<span class='warning'>[src] sinks into the pool of blood!</span>")
-	playsound(get_turf(src), 'sound/magic/enter_blood.ogg', 100, 1, -1)
+	playsound(get_turf(src), 'sound/magic/enter_blood.ogg', 50, 1, -1)
 	// Extinguish, unbuckle, stop being pulled, set our location into the
 	// dummy object
-	var/obj/effect/dummy/slaughter/holder = new /obj/effect/dummy/slaughter(mobloc)
+	var/obj/effect/dummy/phased_mob/slaughter/holder = new /obj/effect/dummy/phased_mob/slaughter(mobloc)
 	src.ExtinguishMob()
 
 	// Keep a reference to whatever we're pulling, because forceMove()
@@ -95,10 +96,10 @@
 		var/mob/living/simple_animal/slaughter/SD = src
 		sound = SD.feast_sound
 	else
-		sound = 'sound/magic/Demon_consume.ogg'
+		sound = 'sound/magic/demon_consume.ogg'
 
 	for(var/i in 1 to 3)
-		playsound(get_turf(src),sound, 100, 1)
+		playsound(get_turf(src),sound, 50, 1)
 		sleep(30)
 
 	if(!victim)
@@ -134,22 +135,25 @@
 /mob/living/proc/bloodcrawl_swallow(var/mob/living/victim)
 	qdel(victim)
 
-/obj/item/weapon/bloodcrawl
+/obj/item/bloodcrawl
 	name = "blood crawl"
 	desc = "You are unable to hold anything while in this form."
 	icon = 'icons/effects/blood.dmi'
-	flags = NODROP|ABSTRACT
+	item_flags = ABSTRACT | DROPDEL
+
+/obj/item/bloodcrawl/Initialize()
+	. = ..()
+	add_trait(TRAIT_NODROP, ABSTRACT_ITEM_TRAIT)
 
 /mob/living/proc/exit_blood_effect(obj/effect/decal/cleanable/B)
-	playsound(get_turf(src), 'sound/magic/exit_blood.ogg', 100, 1, -1)
+	playsound(get_turf(src), 'sound/magic/exit_blood.ogg', 50, 1, -1)
 	//Makes the mob have the color of the blood pool it came out of
 	var/newcolor = rgb(149, 10, 10)
 	if(istype(B, /obj/effect/decal/cleanable/xenoblood))
 		newcolor = rgb(43, 186, 0)
 	add_atom_colour(newcolor, TEMPORARY_COLOUR_PRIORITY)
 	// but only for a few seconds
-	spawn(30)
-		remove_atom_colour(TEMPORARY_COLOUR_PRIORITY, newcolor)
+	addtimer(CALLBACK(src, /atom/.proc/remove_atom_colour, TEMPORARY_COLOUR_PRIORITY, newcolor), 6 SECONDS)
 
 /mob/living/proc/phasein(obj/effect/decal/cleanable/B)
 	if(src.notransform)
@@ -160,14 +164,14 @@
 		return
 	if(!B)
 		return
-	src.loc = B.loc
+	forceMove(B.loc)
 	src.client.eye = src
-	src.visible_message("<span class='warning'><B>[src] rises out of the pool of blood!</B>")
+	src.visible_message("<span class='warning'><B>[src] rises out of the pool of blood!</B></span>")
 	exit_blood_effect(B)
 	if(iscarbon(src))
 		var/mob/living/carbon/C = src
-		for(var/obj/item/weapon/bloodcrawl/BC in C)
-			BC.flags = null
+		for(var/obj/item/bloodcrawl/BC in C)
+			BC.flags_1 = null
 			qdel(BC)
 	qdel(src.holder)
 	src.holder = null

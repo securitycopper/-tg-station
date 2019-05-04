@@ -11,37 +11,36 @@
 	carp_fluff_string = "<span class='holoparasite'>CARP CARP CARP! You caught a support carp. It's a kleptocarp!</span>"
 	tech_fluff_string = "<span class='holoparasite'>Boot sequence complete. Support modules active. Holoparasite swarm online.</span>"
 	toggle_button_type = /obj/screen/guardian/ToggleMode
-	var/obj/structure/recieving_pad/beacon
+	var/obj/structure/receiving_pad/beacon
 	var/beacon_cooldown = 0
 	var/toggle = FALSE
 
-/mob/living/simple_animal/hostile/guardian/healer/New()
-	..()
-	var/datum/atom_hud/medsensor = huds[DATA_HUD_MEDICAL_ADVANCED]
+/mob/living/simple_animal/hostile/guardian/healer/Initialize()
+	. = ..()
+	var/datum/atom_hud/medsensor = GLOB.huds[DATA_HUD_MEDICAL_ADVANCED]
 	medsensor.add_hud_to(src)
 
 /mob/living/simple_animal/hostile/guardian/healer/Stat()
 	..()
 	if(statpanel("Status"))
 		if(beacon_cooldown >= world.time)
-			stat(null, "Beacon Cooldown Remaining: [max(round((beacon_cooldown - world.time)*0.1, 0.1), 0)] seconds")
+			stat(null, "Beacon Cooldown Remaining: [DisplayTimeText(beacon_cooldown - world.time)]")
 
 /mob/living/simple_animal/hostile/guardian/healer/AttackingTarget()
-	if(..())
-		if(toggle == TRUE)
-			if(iscarbon(target))
-				var/mob/living/carbon/C = target
-				C.adjustBruteLoss(-5)
-				C.adjustFireLoss(-5)
-				C.adjustOxyLoss(-5)
-				C.adjustToxLoss(-5)
-				var/obj/effect/overlay/temp/heal/H = new /obj/effect/overlay/temp/heal(get_turf(C))
-				if(namedatum)
-					H.color = namedatum.colour
-				if(C == summoner)
-					update_health_hud()
-					med_hud_set_health()
-					med_hud_set_status()
+	. = ..()
+	if(is_deployed() && toggle && iscarbon(target))
+		var/mob/living/carbon/C = target
+		C.adjustBruteLoss(-5)
+		C.adjustFireLoss(-5)
+		C.adjustOxyLoss(-5)
+		C.adjustToxLoss(-5)
+		var/obj/effect/temp_visual/heal/H = new /obj/effect/temp_visual/heal(get_turf(C))
+		if(namedatum)
+			H.color = namedatum.colour
+		if(C == summoner)
+			update_health_hud()
+			med_hud_set_health()
+			med_hud_set_status()
 
 /mob/living/simple_animal/hostile/guardian/healer/ToggleMode()
 	if(src.loc == summoner)
@@ -88,22 +87,22 @@
 
 	beacon_cooldown = world.time + 3000
 
-/obj/structure/recieving_pad
-	name = "bluespace recieving pad"
+/obj/structure/receiving_pad
+	name = "bluespace receiving pad"
 	icon = 'icons/turf/floors.dmi'
-	desc = "A recieving zone for bluespace teleportations."
+	desc = "A receiving zone for bluespace teleportations."
 	icon_state = "light_on-w"
-	light_range = 1
+	light_range = MINIMUM_USEFUL_LIGHT_RANGE
 	density = FALSE
 	anchored = TRUE
 	layer = ABOVE_OPEN_TURF_LAYER
 
-/obj/structure/recieving_pad/New(loc, mob/living/simple_animal/hostile/guardian/healer/G)
+/obj/structure/receiving_pad/New(loc, mob/living/simple_animal/hostile/guardian/healer/G)
 	. = ..()
 	if(G.namedatum)
 		add_atom_colour(G.namedatum.colour, FIXED_COLOUR_PRIORITY)
 
-/obj/structure/recieving_pad/proc/disappear()
+/obj/structure/receiving_pad/proc/disappear()
 	visible_message("[src] vanishes!")
 	qdel(src)
 
@@ -131,17 +130,17 @@
 	to_chat(src, "<span class='danger'><B>You begin to warp [A].</span></B>")
 	A.visible_message("<span class='danger'>[A] starts to glow faintly!</span>", \
 	"<span class='userdanger'>You start to faintly glow, and you feel strangely weightless!</span>")
-	do_attack_animation(A, null, 1)
+	do_attack_animation(A)
 
 	if(!do_mob(src, A, 60)) //now start the channel
 		to_chat(src, "<span class='danger'><B>You need to hold still!</span></B>")
 		return
 
-	new /obj/effect/overlay/temp/guardian/phase/out(T)
+	new /obj/effect/temp_visual/guardian/phase/out(T)
 	if(isliving(A))
 		var/mob/living/L = A
 		L.flash_act()
 	A.visible_message("<span class='danger'>[A] disappears in a flash of light!</span>", \
 	"<span class='userdanger'>Your vision is obscured by a flash of light!</span>")
-	do_teleport(A, beacon, 0)
-	new /obj/effect/overlay/temp/guardian/phase(get_turf(A))
+	do_teleport(A, beacon, 0, channel = TELEPORT_CHANNEL_BLUESPACE)
+	new /obj/effect/temp_visual/guardian/phase(get_turf(A))

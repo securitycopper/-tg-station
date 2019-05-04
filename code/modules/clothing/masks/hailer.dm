@@ -3,10 +3,11 @@
 
 /obj/item/clothing/mask/gas/sechailer
 	name = "security gas mask"
-	desc = "A standard issue Security gas mask with integrated 'Compli-o-nator 3000' device. Plays over a dozen pre-recorded compliance phrases designed to get scumbags to stand still whilst you taze them. Do not tamper with the device."
+	desc = "A standard issue Security gas mask with integrated 'Compli-o-nator 3000' device. Plays over a dozen pre-recorded compliance phrases designed to get scumbags to stand still whilst you tase them. Do not tamper with the device."
 	actions_types = list(/datum/action/item_action/halt, /datum/action/item_action/adjust)
 	icon_state = "sechailer"
-	flags = BLOCK_GAS_SMOKE_EFFECT | MASKINTERNALS
+	item_state = "sechailer"
+	clothing_flags = BLOCK_GAS_SMOKE_EFFECT | MASKINTERNALS
 	flags_inv = HIDEFACIALHAIR|HIDEFACE
 	w_class = WEIGHT_CLASS_SMALL
 	visor_flags = BLOCK_GAS_SMOKE_EFFECT | MASKINTERNALS
@@ -24,9 +25,16 @@
 	desc = "A close-fitting tactical mask with an especially aggressive Compli-o-nator 3000."
 	actions_types = list(/datum/action/item_action/halt)
 	icon_state = "swat"
+	item_state = "swat"
 	aggressiveness = 3
 	flags_inv = HIDEFACIALHAIR|HIDEFACE|HIDEEYES|HIDEEARS|HIDEHAIR
 	visor_flags_inv = 0
+
+/obj/item/clothing/mask/gas/sechailer/swat/spacepol
+	name = "spacepol mask"
+	desc = "A close-fitting tactical mask created in cooperation with a certain megacorporation, comes with an especially aggressive Compli-o-nator 3000."
+	icon_state = "spacepol"
+	item_state = "spacepol"
 
 /obj/item/clothing/mask/gas/sechailer/cyborg
 	name = "security hailer"
@@ -36,26 +44,28 @@
 	aggressiveness = 1 //Borgs are nicecurity!
 	actions_types = list(/datum/action/item_action/halt)
 
-/obj/item/clothing/mask/gas/sechailer/attackby(obj/item/weapon/W, mob/user, params)
-	if(istype(W, /obj/item/weapon/screwdriver))
-		switch(aggressiveness)
-			if(1)
-				to_chat(user, "<span class='notice'>You set the restrictor to the middle position.</span>")
-				aggressiveness = 2
-			if(2)
-				to_chat(user, "<span class='notice'>You set the restrictor to the last position.</span>")
-				aggressiveness = 3
-			if(3)
-				to_chat(user, "<span class='notice'>You set the restrictor to the first position.</span>")
-				aggressiveness = 1
-			if(4)
-				to_chat(user, "<span class='danger'>You adjust the restrictor but nothing happens, probably because it's broken.</span>")
-	else if(istype(W, /obj/item/weapon/wirecutters))
-		if(aggressiveness != 4)
-			to_chat(user, "<span class='danger'>You broke the restrictor!</span>")
-			aggressiveness = 4
-	else
-		..()
+/obj/item/clothing/mask/gas/sechailer/screwdriver_act(mob/living/user, obj/item/I)
+	if(..())
+		return TRUE
+	switch(aggressiveness)
+		if(1)
+			to_chat(user, "<span class='notice'>You set the restrictor to the middle position.</span>")
+			aggressiveness = 2
+		if(2)
+			to_chat(user, "<span class='notice'>You set the restrictor to the last position.</span>")
+			aggressiveness = 3
+		if(3)
+			to_chat(user, "<span class='notice'>You set the restrictor to the first position.</span>")
+			aggressiveness = 1
+		if(4)
+			to_chat(user, "<span class='danger'>You adjust the restrictor but nothing happens, probably because it's broken.</span>")
+	return TRUE
+
+/obj/item/clothing/mask/gas/sechailer/wirecutter_act(mob/living/user, obj/item/I)
+	if(aggressiveness != 4)
+		to_chat(user, "<span class='danger'>You broke the restrictor!</span>")
+		aggressiveness = 4
+	return TRUE
 
 /obj/item/clothing/mask/gas/sechailer/ui_action_click(mob/user, action)
 	if(istype(action, /datum/action/item_action/halt))
@@ -68,7 +78,7 @@
 /obj/item/clothing/mask/gas/sechailer/emag_act(mob/user as mob)
 	if(safety)
 		safety = FALSE
-		to_chat(user, "<span class='warning'>You silently fry [src]'s vocal circuit with the cryptographic sequencer.")
+		to_chat(user, "<span class='warning'>You silently fry [src]'s vocal circuit with the cryptographic sequencer.</span>")
 	else
 		return
 
@@ -179,7 +189,3 @@
 		playsound(src.loc, "sound/voice/complionator/[phrase_sound].ogg", 100, 0, 4)
 		cooldown = world.time
 		cooldown_special = world.time
-
-
-
-

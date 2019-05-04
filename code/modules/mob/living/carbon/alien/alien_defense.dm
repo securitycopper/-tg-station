@@ -5,8 +5,8 @@
 /mob/living/carbon/alien/get_ear_protection()
 	return 2 //no ears
 
-/mob/living/carbon/alien/hitby(atom/movable/AM, skipcatch, hitpush)
-	..(AM, skipcatch = 1, hitpush = 0)
+/mob/living/carbon/alien/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum)
+	..(AM, skipcatch = TRUE, hitpush = FALSE)
 
 
 /*Code for aliens attacking aliens. Because aliens act on a hivemind, I don't see them as very aggressive with each other.
@@ -21,11 +21,13 @@ In all, this is a lot like the monkey code. /N
 	switch(M.a_intent)
 
 		if ("help")
-			AdjustSleeping(-5)
-			resting = 0
-			AdjustParalysis(-3)
-			AdjustStunned(-3)
-			AdjustWeakened(-3)
+			set_resting(FALSE)
+			AdjustStun(-60)
+			AdjustKnockdown(-60)
+			AdjustImmobilized(-60)
+			AdjustParalyzed(-60)
+			AdjustUnconscious(-60)
+			AdjustSleeping(-100)
 			visible_message("<span class='notice'>[M.name] nuzzles [src] trying to wake [p_them()] up!</span>")
 
 		if ("grab")
@@ -38,7 +40,7 @@ In all, this is a lot like the monkey code. /N
 				visible_message("<span class='danger'>[M.name] bites [src]!</span>", \
 						"<span class='userdanger'>[M.name] bites [src]!</span>", null, COMBAT_MESSAGE_RANGE)
 				adjustBruteLoss(1)
-				add_logs(M, src, "attacked")
+				log_combat(M, src, "attacked")
 				updatehealth()
 			else
 				to_chat(M, "<span class='warning'>[name] is too injured for that.</span>")
@@ -74,7 +76,8 @@ In all, this is a lot like the monkey code. /N
 
 
 /mob/living/carbon/alien/attack_animal(mob/living/simple_animal/M)
-	if(..())
+	. = ..()
+	if(.)
 		var/damage = rand(M.melee_damage_lower, M.melee_damage_upper)
 		switch(M.melee_damage_type)
 			if(BRUTE)
@@ -89,7 +92,6 @@ In all, this is a lot like the monkey code. /N
 				adjustCloneLoss(damage)
 			if(STAMINA)
 				adjustStaminaLoss(damage)
-		updatehealth()
 
 /mob/living/carbon/alien/attack_slime(mob/living/simple_animal/slime/M)
 	if(..()) //successful slime attack
@@ -97,7 +99,7 @@ In all, this is a lot like the monkey code. /N
 		if(M.is_adult)
 			damage = rand(10, 40)
 		adjustBruteLoss(damage)
-		add_logs(M, src, "attacked")
+		log_combat(M, src, "attacked")
 		updatehealth()
 
 /mob/living/carbon/alien/ex_act(severity, target, origin)
@@ -116,10 +118,10 @@ In all, this is a lot like the monkey code. /N
 		if(3)
 			take_overall_damage(30,0)
 			if(prob(50))
-				Paralyse(1)
+				Unconscious(20)
 			adjustEarDamage(15,60)
 
-/mob/living/carbon/alien/soundbang_act(intensity = 1, stun_pwr = 1, damage_pwr = 5, deafen_pwr = 15)
+/mob/living/carbon/alien/soundbang_act(intensity = 1, stun_pwr = 20, damage_pwr = 5, deafen_pwr = 15)
 	return 0
 
 /mob/living/carbon/alien/acid_act(acidpwr, acid_volume)

@@ -1,30 +1,34 @@
 /mob/living/silicon/pai
 	name = "pAI"
-	var/network = "SS13"
-	var/obj/machinery/camera/current = null
 	icon = 'icons/mob/pai.dmi'
 	icon_state = "repairbot"
-	mouse_opacity = 2
-	density = 0
-	luminosity = 0
+	mouse_opacity = MOUSE_OPACITY_ICON
+	density = FALSE
+	hud_type = /datum/hud/pai
 	pass_flags = PASSTABLE | PASSMOB
 	mob_size = MOB_SIZE_TINY
 	desc = "A generic pAI mobile hard-light holographics emitter. It seems to be deactivated."
 	weather_immunities = list("ash")
 	health = 500
 	maxHealth = 500
+	layer = BELOW_MOB_LAYER
+	can_be_held = TRUE
+	var/network = "ss13"
+	var/obj/machinery/camera/current = null
 
 	var/ram = 100	// Used as currency to purchase different abilities
 	var/list/software = list()
 	var/userDNA		// The DNA string of our assigned user
-	var/obj/item/device/paicard/card	// The card we inhabit
+	var/obj/item/paicard/card	// The card we inhabit
+	var/hacking = FALSE		//Are we hacking a door?
 
 	var/speakStatement = "states"
 	var/speakExclamation = "declares"
 	var/speakDoubleExclamation = "alarms"
 	var/speakQuery = "queries"
 
-	var/obj/item/weapon/pai_cable/cable		// The cable we produce and use when door or camera jacking
+	var/obj/item/radio/headset			// The pAI's headset
+	var/obj/item/pai_cable/cable		// The cable we produce and use when door or camera jacking
 
 	var/master				// Name of the one who commands us
 	var/master_dna			// DNA string for owner verification
@@ -35,7 +39,9 @@
 	var/screen				// Which screen our main window displays
 	var/subscreen			// Which specific function of the main screen is being displayed
 
-	var/obj/item/device/pda/ai/pai/pda = null
+	var/obj/item/pda/ai/pai/pda = null
+	
+	var/obj/machinery/newscaster			//pAI Newscaster
 
 	var/secHUD = 0			// Toggles whether the Security HUD is active or not
 	var/medHUD = 0			// Toggles whether the Medical  HUD is active or not
@@ -49,13 +55,21 @@
 	var/obj/machinery/door/hackdoor		// The airlock being hacked
 	var/hackprogress = 0				// Possible values: 0 - 100, >= 100 means the hack is complete and will be reset upon next check
 
-	var/obj/item/radio/integrated/signal/sradio // AI's signaller
+	var/obj/item/integrated_signaler/signaler // AI's signaller
 
+	var/obj/item/instrument/piano_synth/internal_instrument
+
+	var/encryptmod = FALSE
 	var/holoform = FALSE
 	var/canholo = TRUE
-	var/obj/item/weapon/card/id/access_card = null
+	var/can_transmit = TRUE
+	var/can_receive = TRUE
+	var/obj/item/card/id/access_card = null
 	var/chassis = "repairbot"
-	var/list/possible_chassis = list("cat", "mouse", "monkey", "corgi", "fox", "repairbot", "rabbit")
+	var/list/possible_chassis = list("cat" = TRUE, "mouse" = TRUE, "monkey" = TRUE, "corgi" = FALSE, "fox" = FALSE, "repairbot" = TRUE, "rabbit" = TRUE)		//assoc value is whether it can be picked up.
+	var/static/item_head_icon = 'icons/mob/pai_item_head.dmi'
+	var/static/item_lh_icon = 'icons/mob/pai_item_lh.dmi'
+	var/static/item_rh_icon = 'icons/mob/pai_item_rh.dmi'
 
 	var/emitterhealth = 20
 	var/emittermaxhealth = 20
@@ -67,34 +81,43 @@
 	var/overload_ventcrawl = 0
 	var/overload_bulletblock = 0	//Why is this a good idea?
 	var/overload_maxhealth = 0
-	canmove = FALSE
-	var/silent = 0
-	var/hit_slowdown = 0
+	var/silent = FALSE
 	var/brightness_power = 5
-	var/slowdown = 0
 
-/mob/living/silicon/pai/movement_delay()
-	. = ..()
-	. += slowdown
+/mob/living/silicon/pai/can_unbuckle()
+	return FALSE
+
+/mob/living/silicon/pai/can_buckle()
+	return FALSE
 
 /mob/living/silicon/pai/Destroy()
-	pai_list -= src
-	..()
+	QDEL_NULL(internal_instrument)
+	if (loc != card)
+		card.forceMove(drop_location())
+	card.pai = null
+	card.cut_overlays()
+	card.add_overlay("pai-off")
+	GLOB.pai_list -= src
+	return ..()
 
-/mob/living/silicon/pai/New(var/obj/item/device/paicard/P)
+/mob/living/silicon/pai/Initialize()
+	var/obj/item/paicard/P = loc
 	START_PROCESSING(SSfastprocess, src)
-	pai_list += src
+	GLOB.pai_list += src
 	make_laws()
-	canmove = 0
 	if(!istype(P)) //when manually spawning a pai, we create a card to put it into.
 		var/newcardloc = P
-		P = new /obj/item/device/paicard(newcardloc)
+		P = new /obj/item/paicard(newcardloc)
 		P.setPersonality(src)
-	loc = P
+	forceMove(P)
 	card = P
-	sradio = new(src)
+	job = "personal AI"
+	signaler = new(src)
 	if(!radio)
-		radio = new /obj/item/device/radio(src)
+		radio = new /obj/item/radio/headset/silicon/pai(src)
+	newscaster = new /obj/machinery/newscaster(src)
+	if(!aicamera)
+		aicamera = new /obj/item/camera/siliconcam/ai_camera(src)
 
 	//PDA
 	pda = new(src)
@@ -103,18 +126,33 @@
 		pda.owner = text("[]", src)
 		pda.name = pda.owner + " (" + pda.ownjob + ")"
 
-	..()
+	. = ..()
 
-	var/datum/action/innate/pai/shell/AS = new /datum/action/innate/pai/shell
-	var/datum/action/innate/pai/chassis/AC = new /datum/action/innate/pai/chassis
-	var/datum/action/innate/pai/rest/AR = new /datum/action/innate/pai/rest
-	var/datum/action/innate/pai/light/AL = new /datum/action/innate/pai/light
-	AS.Grant(src)
-	AC.Grant(src)
-	AR.Grant(src)
-	AL.Grant(src)
 	emittersemicd = TRUE
 	addtimer(CALLBACK(src, .proc/emittercool), 600)
+
+/mob/living/silicon/pai/Life()
+	if(hacking)
+		process_hack()
+	return ..()
+
+/mob/living/silicon/pai/proc/process_hack()
+
+	if(cable && cable.machine && istype(cable.machine, /obj/machinery/door) && cable.machine == hackdoor && get_dist(src, hackdoor) <= 1)
+		hackprogress = CLAMP(hackprogress + 4, 0, 100)
+	else
+		temp = "Door Jack: Connection to airlock has been lost. Hack aborted."
+		hackprogress = 0
+		hacking = FALSE
+		hackdoor = null
+		return
+	if(screen == "doorjack" && subscreen == 0) // Update our view, if appropriate
+		paiInterface()
+	if(hackprogress >= 100)
+		hackprogress = 0
+		var/obj/machinery/door/D = cable.machine
+		D.open()
+		hacking = FALSE
 
 /mob/living/silicon/pai/make_laws()
 	laws = new /datum/ai_laws/pai()
@@ -143,11 +181,14 @@
 
 // See software.dm for Topic()
 
-/mob/living/silicon/pai/canUseTopic(atom/movable/M)
+/mob/living/silicon/pai/canUseTopic(atom/movable/M, be_close=FALSE, no_dextery=FALSE, no_tk=FALSE)
+	if(be_close && !in_range(M, src))
+		to_chat(src, "<span class='warning'>You are too far away!</span>")
+		return FALSE
 	return TRUE
 
 /mob/proc/makePAI(delold)
-	var/obj/item/device/paicard/card = new /obj/item/device/paicard(get_turf(src))
+	var/obj/item/paicard/card = new /obj/item/paicard(get_turf(src))
 	var/mob/living/silicon/pai/pai = new /mob/living/silicon/pai(card)
 	pai.key = key
 	pai.name = name
@@ -157,12 +198,22 @@
 
 /datum/action/innate/pai
 	name = "PAI Action"
+	icon_icon = 'icons/mob/actions/actions_silicon.dmi'
 	var/mob/living/silicon/pai/P
 
 /datum/action/innate/pai/Trigger()
 	if(!ispAI(owner))
 		return 0
 	P = owner
+
+/datum/action/innate/pai/software
+	name = "Software Interface"
+	button_icon_state = "pai"
+	background_icon_state = "bg_tech"
+
+/datum/action/innate/pai/software/Trigger()
+	..()
+	P.paiInterface()
 
 /datum/action/innate/pai/shell
 	name = "Toggle Holoform"
@@ -177,7 +228,7 @@
 		P.fold_out()
 
 /datum/action/innate/pai/chassis
-	name = "Holochassis Appearence Composite"
+	name = "Holochassis Appearance Composite"
 	button_icon_state = "pai_chassis"
 	background_icon_state = "bg_tech"
 
@@ -193,8 +244,10 @@
 /datum/action/innate/pai/rest/Trigger()
 	..()
 	P.lay_down()
+
 /datum/action/innate/pai/light
 	name = "Toggle Integrated Lights"
+	icon_icon = 'icons/mob/actions/actions_spells.dmi'
 	button_icon_state = "emp"
 	background_icon_state = "bg_tech"
 
@@ -205,9 +258,9 @@
 /mob/living/silicon/pai/Process_Spacemove(movement_dir = 0)
 	. = ..()
 	if(!.)
-		slowdown = 2
+		add_movespeed_modifier(MOVESPEED_ID_PAI_SPACEWALK_SPEEDMOD, TRUE, 100, multiplicative_slowdown = 2)
 		return TRUE
-	slowdown = initial(slowdown)
+	remove_movespeed_modifier(MOVESPEED_ID_PAI_SPACEWALK_SPEEDMOD, TRUE)
 	return TRUE
 
 /mob/living/silicon/pai/examine(mob/user)
@@ -232,7 +285,16 @@
 	health = maxHealth - getBruteLoss() - getFireLoss()
 	update_stat()
 
-
 /mob/living/silicon/pai/process()
-	emitterhealth = Clamp((emitterhealth + emitterregen), -50, emittermaxhealth)
-	hit_slowdown = Clamp((hit_slowdown - 1), 0, 100)
+	emitterhealth = CLAMP((emitterhealth + emitterregen), -50, emittermaxhealth)
+
+/obj/item/paicard/attackby(obj/item/W, mob/user, params)
+	..()
+	user.set_machine(src)
+	if(pai.encryptmod == TRUE)
+		if(W.tool_behaviour == TOOL_SCREWDRIVER)
+			pai.radio.attackby(W, user, params)
+		else if(istype(W, /obj/item/encryptionkey))
+			pai.radio.attackby(W, user, params)
+	else
+		to_chat(user, "Encryption Key ports not configured.")

@@ -1,28 +1,9 @@
-	//////////////
-var/NEARSIGHTBLOCK = 0
-var/EPILEPSYBLOCK = 0
-var/COUGHBLOCK = 0
-var/TOURETTESBLOCK = 0
-var/NERVOUSBLOCK = 0
-var/BLINDBLOCK = 0
-var/DEAFBLOCK = 0
-var/HULKBLOCK = 0
-var/TELEBLOCK = 0
-var/FIREBLOCK = 0
-var/XRAYBLOCK = 0
-var/CLUMSYBLOCK = 0
-var/STRANGEBLOCK = 0
-var/RACEBLOCK = 0
+//faster than having to constantly loop for them
+GLOBAL_LIST_EMPTY(all_mutations) //type = initialized mutation
+GLOBAL_LIST_EMPTY(full_sequences) //type = correct sequence
+GLOBAL_LIST_EMPTY(bad_mutations) //bad initialized mutations
+GLOBAL_LIST_EMPTY(good_mutations) //good initialized mutations
+GLOBAL_LIST_EMPTY(not_good_mutations) //neutral initialized mutations
+GLOBAL_LIST_EMPTY(alias_mutations) //alias = type
 
-var/list/bad_se_blocks
-var/list/good_se_blocks
-var/list/op_se_blocks
-
-var/NULLED_SE
-var/NULLED_UI
-
-var/list/global_mutations = list() // list of hidden mutation things
-
-var/list/bad_mutations = list()
-var/list/good_mutations = list()
-var/list/not_good_mutations = list()
+GLOBAL_LIST_EMPTY(mutation_recipes)

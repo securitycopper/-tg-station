@@ -51,6 +51,9 @@
 		last_processed = world.time
 
 /datum/forced_movement/proc/TryMove(recursive = FALSE)
+	if(QDELETED(src)) //Our previous step caused deletion of this datum
+		return
+
 	var/atom/movable/vic = victim	//sanic
 	var/atom/tar = target
 
@@ -84,7 +87,7 @@
 
 /mob/Bump(atom/A)
 	. = ..()
-	if(force_moving && force_moving.allow_climbing && istype(A,/obj/structure))
+	if(force_moving && force_moving.allow_climbing && isstructure(A))
 		var/obj/structure/S = A
 		if(S.climbable)
 			S.do_climb(src)

@@ -4,13 +4,14 @@
 	desc = "A folded bag designed for the storage and transportation of cadavers."
 	icon = 'icons/obj/bodybag.dmi'
 	icon_state = "bodybag_folded"
-	var/unfoldedbag_path = /obj/structure/closet/body_bag
 	w_class = WEIGHT_CLASS_SMALL
+	var/unfoldedbag_path = /obj/structure/closet/body_bag
 
 /obj/item/bodybag/attack_self(mob/user)
 	deploy_bodybag(user, user.loc)
 
 /obj/item/bodybag/afterattack(atom/target, mob/user, proximity)
+	. = ..()
 	if(proximity)
 		if(isopenturf(target))
 			deploy_bodybag(user, target)
@@ -19,13 +20,19 @@
 	var/obj/structure/closet/body_bag/R = new unfoldedbag_path(location)
 	R.open(user)
 	R.add_fingerprint(user)
-	qdel(src)
+	R.foldedbag_instance = src
+	moveToNullspace()
 
-/obj/item/weapon/storage/box/bodybags/New()
+/obj/item/bodybag/suicide_act(mob/user)
+	if(isopenturf(user.loc))
+		user.visible_message("<span class='suicide'>[user] is crawling into [src]! It looks like [user.p_theyre()] trying to commit suicide!</span>")
+		var/obj/structure/closet/body_bag/R = new unfoldedbag_path(user.loc)
+		R.add_fingerprint(user)
+		qdel(src)
+		user.forceMove(R)
+		playsound(src, 'sound/items/zip.ogg', 15, 1, -3)
+		return (OXYLOSS)
 	..()
-	for(var/i in 1 to 7)
-		new /obj/item/bodybag(src)
-
 
 // Bluespace bodybag
 
@@ -36,12 +43,21 @@
 	icon_state = "bluebodybag_folded"
 	unfoldedbag_path = /obj/structure/closet/body_bag/bluespace
 	w_class = WEIGHT_CLASS_SMALL
-	origin_tech = "bluespace=4;materials=4;plasmatech=4"
+	item_flags = NO_MAT_REDEMPTION
+	var/static/datum/callback/canreach_blocking_callback = CALLBACK(GLOBAL_PROC, .proc/__bluespace_bodybag_canreach_block)
+
+/obj/item/bodybag/bluespace/Initialize()
+	. = ..()
+	RegisterSignal(src, COMSIG_ATOM_CANREACH, canreach_blocking_callback)
+
+/proc/__bluespace_bodybag_canreach_block()
+	return COMPONENT_BLOCK_REACH
 
 /obj/item/bodybag/bluespace/examine(mob/user)
 	..()
 	if(contents.len)
-		to_chat(user, "<span class='notice'>You can make out the shapes of [contents.len] objects through the fabric.</span>")
+		var/s = contents.len == 1 ? "" : "s"
+		to_chat(user, "<span class='notice'>You can make out the shape[s] of [contents.len] object[s] through the fabric.</span>")
 
 /obj/item/bodybag/bluespace/Destroy()
 	for(var/atom/movable/A in contents)
@@ -58,7 +74,8 @@
 			to_chat(A, "<span class='notice'>You suddenly feel air around you! You're free!</span>")
 	R.open(user)
 	R.add_fingerprint(user)
-	qdel(src)
+	R.foldedbag_instance = src
+	moveToNullspace()
 
 /obj/item/bodybag/bluespace/container_resist(mob/living/user)
 	if(user.incapacitated())
